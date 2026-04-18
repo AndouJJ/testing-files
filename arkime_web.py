@@ -3011,9 +3011,23 @@ function rerenderCard(field) {
   const cards = document.querySelectorAll(".card");
   for (const c of cards) {
     if (c.getAttribute("data-field") === field) {
+      // Preserve expanded state
+      const cardBody = c.querySelector(".card-body");
+      const wasExpanded = cardBody && cardBody.style.display !== "none";
+
       const tmp = document.createElement("div");
       tmp.innerHTML = resultCard(lastResults[field], lastCfg);
-      c.replaceWith(tmp.firstElementChild);
+      const newCard = tmp.firstElementChild;
+
+      // Restore expanded state
+      if (wasExpanded) {
+        const newBody = newCard.querySelector(".card-body");
+        const newToggle = newCard.querySelector(".card-toggle");
+        if (newBody) newBody.style.display = "";
+        if (newToggle) newToggle.innerHTML = "&#9660;";
+      }
+
+      c.replaceWith(newCard);
       // Reapply any live filter
       const topKey  = `${field}::top`;
       const rareKey = `${field}::rare`;
