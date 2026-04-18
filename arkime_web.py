@@ -1010,11 +1010,12 @@ def _create_hunt(cfg, name, search_text, search_type, src=True, dst=True):
     """
     time_p = _time_params(cfg)
     total_sessions = _get_session_count(cfg)
+    max_packets = str(cfg.get("hunt_max_packets", 10000))
 
     body = {
         "totalSessions": total_sessions,
         "name": name,
-        "size": "10000",
+        "size": max_packets,
         "search": search_text,
         "searchType": search_type,
         "type": "raw",
@@ -2135,9 +2136,23 @@ tr.clean td{opacity:.75}
         </div>
         <div class="row2" style="margin-top:8px">
           <div>
+            <label class="no-mt">Max packets/session</label>
+            <select id="psHuntMaxPackets">
+              <option value="50">50</option>
+              <option value="500">500</option>
+              <option value="5000">5,000</option>
+              <option value="10000" selected>10,000</option>
+              <option value="100000">100,000</option>
+              <option value="1000000">1,000,000</option>
+              <option value="10000000">10,000,000 (admin)</option>
+            </select>
+          </div>
+          <div>
             <label class="no-mt">Hunt timeout (sec)</label>
             <input type="number" id="psHuntTimeout" value="300" min="30">
           </div>
+        </div>
+        <div class="row2" style="margin-top:8px">
           <div>
             <label class="no-mt">Cleanup hunts</label>
             <select id="psCleanupHunts">
@@ -2145,6 +2160,7 @@ tr.clean td{opacity:.75}
               <option value="false">No</option>
             </select>
           </div>
+          <div></div>
         </div>
         <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
           Searches raw packet payloads using Arkime Hunt API.<br>
@@ -2590,6 +2606,7 @@ function applyPsConfig(cfg) {
   // Mode 4: byte_pattern
   else if (mode === "byte_pattern") {
     if (cfg.port_field) document.getElementById("psPortField4").value = cfg.port_field;
+    if (cfg.hunt_max_packets != null) document.getElementById("psHuntMaxPackets").value = cfg.hunt_max_packets;
     if (cfg.hunt_timeout != null) document.getElementById("psHuntTimeout").value = cfg.hunt_timeout;
     if (cfg.cleanup_hunts != null) document.getElementById("psCleanupHunts").value = cfg.cleanup_hunts ? "true" : "false";
     // Restore byte patterns
@@ -3577,10 +3594,11 @@ function getPortScanCfg() {
     out.port_ratio_threshold  = parseFloat(document.getElementById("psPortRatio").value) || 0.4;
     out.max_hosts             = parseInt(document.getElementById("psMaxHosts").value) || 100;
   } else if (mode === "byte_pattern") {
-    out.port_field     = document.getElementById("psPortField4").value.trim() || "port.dst";
-    out.patterns       = getBytePatterns();
-    out.hunt_timeout   = parseInt(document.getElementById("psHuntTimeout").value) || 300;
-    out.cleanup_hunts  = document.getElementById("psCleanupHunts").value === "true";
+    out.port_field       = document.getElementById("psPortField4").value.trim() || "port.dst";
+    out.patterns         = getBytePatterns();
+    out.hunt_max_packets = parseInt(document.getElementById("psHuntMaxPackets").value) || 10000;
+    out.hunt_timeout     = parseInt(document.getElementById("psHuntTimeout").value) || 300;
+    out.cleanup_hunts    = document.getElementById("psCleanupHunts").value === "true";
   }
   return out;
 }
