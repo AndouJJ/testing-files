@@ -89,12 +89,30 @@ def _ssl_ctx(cfg):
 def _get(cfg, path, params=None):
     qs = ("?" + urllib.parse.urlencode(params)) if params else ""
     url = cfg["url"].rstrip("/") + path + qs
+    timeout = int(cfg.get("timeout_secs", 30))
+    ctx = _ssl_ctx(cfg)
+
+    if cfg.get("auth_type") == "digest":
+        user = cfg.get("username", "") or ""
+        pwd  = cfg.get("password", "") or ""
+        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+        pwd_mgr.add_password(None, url, user, pwd)
+        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
+        if ctx:
+            opener = urllib.request.build_opener(
+                auth_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(auth_handler)
+        with opener.open(url, timeout=timeout) as r:
+            return r.read().decode("utf-8", errors="replace")
+
     req = urllib.request.Request(url)
     h = _auth_header(cfg)
     if h:
         req.add_header("Authorization", h)
-    ctx = _ssl_ctx(cfg)
-    with urllib.request.urlopen(req, context=ctx, timeout=int(cfg.get("timeout_secs", 30))) as r:
+    with urllib.request.urlopen(req, context=ctx, timeout=timeout) as r:
         return r.read().decode("utf-8", errors="replace")
 
 
@@ -1357,6 +1375,7 @@ tr.clean td{opacity:.75}
     <label>Authentication</label>
     <select id="authType" onchange="toggleAuth()">
       <option value="basic">Basic — username / password</option>
+      <option value="digest">Digest — username / password</option>
       <option value="apikey">API Key</option>
       <option value="none">None</option>
     </select>
@@ -1674,7 +1693,7 @@ function setQuickRange(hours) {
 
 function toggleAuth() {
   const t = document.getElementById("authType").value;
-  document.getElementById("basicFields").style.display  = t === "basic"  ? "" : "none";
+  document.getElementById("basicFields").style.display  = (t === "basic" || t === "digest") ? "" : "none";
   document.getElementById("apikeyField").style.display  = t === "apikey" ? "" : "none";
 }
 
