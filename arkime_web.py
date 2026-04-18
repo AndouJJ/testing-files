@@ -3147,20 +3147,109 @@ function applyAnomalyChips() {
 // ── Report download ──────────────────────────────────────────────────────────
 function downloadReport() {
   if (!lastCfg) return;
-  const safeCfg = {...lastCfg};
-  delete safeCfg.password;
-  delete safeCfg.api_key;
-  const report = {
-    generated_at: new Date().toISOString(),
-    config: safeCfg,
-    results: Object.values(lastResults),
-    anomaly_hints: anomHints,
-  };
+  const results = Object.values(lastResults);
   const ts = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "").slice(0, 15);
-  const blob = new Blob([JSON.stringify(report, null, 2)], {type: "application/json"});
+  const genTime = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+
+  let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Luxray Analysis Report - ${genTime}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; color: #333; }
+    h1 { color: #1e3a5f; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+    h2 { color: #1e3a5f; margin-top: 30px; }
+    h3 { color: #374151; margin-top: 20px; font-family: monospace; background: #e5e7eb; padding: 8px 12px; border-radius: 4px; }
+    .meta { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .meta p { margin: 5px 0; }
+    .meta strong { color: #1e3a5f; }
+    .summary { display: flex; gap: 20px; flex-wrap: wrap; margin: 15px 0; }
+    .stat { background: #e0e7ff; padding: 12px 20px; border-radius: 6px; text-align: center; }
+    .stat-val { font-size: 1.5rem; font-weight: bold; color: #3730a3; }
+    .stat-lbl { font-size: .8rem; color: #6366f1; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 25px 0; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th { background: #1e3a5f; color: #fff; padding: 10px 12px; text-align: left; font-size: .85rem; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: .85rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .val { font-family: monospace; word-break: break-all; }
+    .num { text-align: right; }
+    .section { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .bar { background: #dbeafe; height: 8px; border-radius: 4px; }
+    .bar-fill { background: #3b82f6; height: 100%; border-radius: 4px; }
+    .rare-bar .bar-fill { background: #f59e0b; }
+    .tbl-title { font-weight: 600; color: #374151; margin: 15px 0 8px 0; font-size: .9rem; }
+    .footer { text-align: center; color: #9ca3af; font-size: .8rem; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <h1>Luxray Analysis Report</h1>
+  <div class="meta">
+    <p><strong>Generated:</strong> ${genTime}</p>
+    <p><strong>Time Range:</strong> ${esc(lastCfg.start_date || '')} to ${esc(lastCfg.end_date || '')}</p>
+    ${lastCfg.expression ? '<p><strong>Expression:</strong> <code>' + esc(lastCfg.expression) + '</code></p>' : ''}
+    ${lastCfg.tags && lastCfg.tags.length ? '<p><strong>Tags:</strong> ' + esc(lastCfg.tags.join(', ')) + ' (' + lastCfg.tags_match + ')</p>' : ''}
+    <p><strong>Fields Analyzed:</strong> ${results.length}</p>
+  </div>
+`;
+
+  for (const r of results) {
+    if (r.error) {
+      html += '<div class="section"><h3>' + esc(r.field) + '</h3><p style="color:#dc2626">Error: ' + esc(r.error) + '</p></div>';
+      continue;
+    }
+
+    const maxTop = r.top_n.length ? r.top_n[0].count : 1;
+    const rareThresh = lastCfg.rare_threshold || 3;
+
+    html += `
+  <div class="section">
+    <h3>${esc(r.field)}</h3>
+    <div class="summary">
+      <div class="stat"><div class="stat-val">${fmt(r.total_unique)}</div><div class="stat-lbl">Unique Values</div></div>
+      <div class="stat"><div class="stat-val">${fmt(r.total_hits)}</div><div class="stat-lbl">Total Hits</div></div>
+      <div class="stat"><div class="stat-val">${fmt(r.rare.length)}</div><div class="stat-lbl">Rare Values</div></div>
+      <div class="stat"><div class="stat-val">${fmt(r.skipped)}</div><div class="stat-lbl">Allowlisted</div></div>
+    </div>
+
+    <div class="tbl-title">Top ${r.top_n.length} by Frequency</div>
+    <table>
+      <thead><tr><th>Value</th><th class="num">Count</th><th class="num">%</th><th style="width:150px">Distribution</th></tr></thead>
+      <tbody>
+        ${r.top_n.map(row => {
+          const pct = r.total_hits ? (row.count / r.total_hits * 100).toFixed(1) : 0;
+          const barW = Math.round(row.count / maxTop * 100);
+          return '<tr><td class="val">' + esc(String(row.value)) + '</td><td class="num">' + fmt(row.count) + '</td><td class="num">' + pct + '%</td><td><div class="bar"><div class="bar-fill" style="width:' + barW + '%"></div></div></td></tr>';
+        }).join('')}
+      </tbody>
+    </table>
+
+    <div class="tbl-title">Rare Values (seen ≤ ${rareThresh} times)</div>
+    <table>
+      <thead><tr><th>Value</th><th class="num">Count</th><th style="width:150px">Distribution</th></tr></thead>
+      <tbody>
+        ${r.rare.length ? r.rare.map(row => {
+          const barW = Math.round(row.count / rareThresh * 100);
+          return '<tr><td class="val">' + esc(String(row.value)) + '</td><td class="num">' + fmt(row.count) + '</td><td><div class="bar rare-bar"><div class="bar-fill" style="width:' + barW + '%"></div></div></td></tr>';
+        }).join('') : '<tr><td colspan="3" style="color:#9ca3af;text-align:center">No rare values</td></tr>'}
+      </tbody>
+    </table>
+  </div>
+`;
+  }
+
+  html += `
+  <div class="footer">
+    Generated by Luxray - Network Traffic Analyzer
+  </div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type: "text/html"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `arkime_report_${ts}.json`;
+  a.download = 'luxray_report_' + ts + '.html';
   a.click();
   URL.revokeObjectURL(a.href);
 }
