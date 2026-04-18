@@ -1107,7 +1107,7 @@ def do_port_scan_byte_pattern(cfg, progress=None):
 
     cfg keys:
       patterns: list of {pattern, type ('hex'|'ascii'), expected_ports: [int, ...]}
-      port_field: 'port.dst' or 'port.src'
+      port_field: 'port' (both), 'port.dst', or 'port.src'
       cleanup_hunts: bool (default True) - delete hunts after completion
       hunt_timeout: int (default 300) - max seconds to wait per hunt
     """
@@ -1160,7 +1160,15 @@ def do_port_scan_byte_pattern(cfg, progress=None):
                 for sess in sessions:
                     # Handle nested structure: source.port, destination.port
                     ports = []
-                    if port_field == "port.dst":
+                    if port_field == "port":
+                        # Check both src and dst ports
+                        p_dst = sess.get("destination", {}).get("port")
+                        p_src = sess.get("source", {}).get("port")
+                        if p_dst is not None:
+                            ports.append(p_dst)
+                        if p_src is not None:
+                            ports.append(p_src)
+                    elif port_field == "port.dst":
                         p = sess.get("destination", {}).get("port")
                         if p is not None:
                             ports.append(p)
@@ -2067,14 +2075,11 @@ tr.clean td{opacity:.75}
 
       <div id="psMode_byte_pattern" style="display:none">
         <label>Port field</label>
-        <div class="srch-wrap" data-mode="ps-port4">
-          <input type="text" id="psPortField4" class="srch-inp" value="port.dst" placeholder="Select or search..."
-                 oninput="_srchRender(this,arkimeFields,this.value)"
-                 onfocus="_srchRender(this,arkimeFields,this.value)"
-                 onblur="_srchClose(this)">
-          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
-          <div class="srch-list"></div>
-        </div>
+        <select id="psPortField4">
+          <option value="port" selected>port (src or dst)</option>
+          <option value="port.dst">port.dst</option>
+          <option value="port.src">port.src</option>
+        </select>
         <label>Byte patterns</label>
         <div id="bytePatternList"></div>
         <div class="btn-row" style="margin-top:8px">
