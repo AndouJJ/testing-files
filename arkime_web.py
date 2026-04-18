@@ -611,7 +611,7 @@ def do_anomaly_hints(cfg):
         field = pair.get("field", "")
         value = pair.get("value", "")
         try:
-            pivot = f'{field} == "{_esc_val(value)}"'
+            pivot = f'{field} == {_format_value(field, value)}'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             raw   = _fetch_unique(cfg, "ip.src", full)
             total = sum(c for _, c in raw)
