@@ -1740,9 +1740,15 @@ body.dark ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 
 /* Cards */
 .card{background:var(--surface);border-radius:10px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+.card-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;user-select:none}
+.card-header:hover{opacity:.85}
+.card-toggle{color:var(--text-3);font-size:.8rem;width:16px;text-align:center;flex-shrink:0}
 .card-title{font-weight:700;font-size:.95rem;color:var(--text-1);font-family:'SFMono-Regular',Consolas,monospace}
-.card-sub{font-size:.72rem;color:var(--text-4);margin-top:2px}
+.card-summary{font-size:.75rem;color:var(--text-3);flex:1}
+.card-body{margin-top:12px}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
+.card-sub{font-size:.72rem;color:var(--text-4);margin-top:2px;margin-bottom:8px}
+.btn-sm{padding:4px 8px;font-size:.7rem}
 .card-btns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 
 .stats{display:flex;background:var(--surface-2);border-radius:7px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border-2)}
@@ -2807,6 +2813,8 @@ function renderResults(panel, results, cfg) {
     ${tagInfo}${exprInfo}
     <span class="spacer"></span>
     <span style="color:#9ca3af;margin-right:8px">${results.length} field${results.length!==1?"s":""}</span>
+    <button class="btn-outline btn-sm" onclick="expandAllCards()" title="Expand all">&#x25BC; Expand</button>
+    <button class="btn-outline btn-sm" onclick="collapseAllCards()" title="Collapse all">&#x25B6; Collapse</button>
     <button class="btn-outline" onclick="downloadReport()">&#x2193; Report</button>
   </div>
   <div id="bulkBar">
@@ -2839,6 +2847,7 @@ function resultCard(r, cfg) {
   const maxTop  = r.top_n.length ? r.top_n[0].count : 1;
   const topKey  = `${r.field}::top`;
   const rareKey = `${r.field}::rare`;
+  const cardId  = `card-${btoa(r.field).replace(/[^a-zA-Z0-9]/g, '')}`;
 
   // Register rows in rowData
   const topIdx  = r.top_n.map(row => {
@@ -2856,49 +2865,51 @@ function resultCard(r, cfg) {
   const rareRows = renderValueRows(r.field, r.rare,  rareIdx, rareKey, {maxC: cfg.rare_threshold, anom: cfg.anom_hints});
 
   return `<div class="card" data-field="${esc(r.field)}">
-    <div class="card-top">
-      <div>
-        <div class="card-title">${esc(r.field)}</div>
-        <div class="card-sub">${fmt(r.skipped)} allowlisted value${r.skipped!==1?"s":""} hidden</div>
+    <div class="card-header" onclick="toggleCard('${cardId}')">
+      <span class="card-toggle" id="${cardId}-toggle">&#9654;</span>
+      <div class="card-title">${esc(r.field)}</div>
+      <div class="card-summary">${fmt(r.total_unique)} unique &middot; ${fmt(r.total_hits)} hits &middot; ${fmt(r.rare.length)} rare</div>
+      <div class="card-btns" onclick="event.stopPropagation()">
+        <button class="btn-outline btn-sm" onclick="dlCSV('${esc(r.field)}','top')">&#x2193; Top</button>
+        <button class="btn-outline btn-sm" onclick="dlCSV('${esc(r.field)}','rare')">&#x2193; Rare</button>
       </div>
-      <div class="card-btns">
-        <button class="btn-outline" onclick="dlCSV('${esc(r.field)}','top')">&#x2193; Top CSV</button>
-        <button class="btn-outline" onclick="dlCSV('${esc(r.field)}','rare')">&#x2193; Rare CSV</button>
+    </div>
+    <div class="card-body" id="${cardId}" style="display:none">
+      <div class="card-sub">${fmt(r.skipped)} allowlisted value${r.skipped!==1?"s":""} hidden</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val">${fmt(r.total_unique)}</div><div class="stat-lbl">Unique values</div></div>
+        <div class="stat"><div class="stat-val">${fmt(r.total_hits)}</div><div class="stat-lbl">Total hits</div></div>
+        <div class="stat"><div class="stat-val">${fmt(r.rare.length)}</div><div class="stat-lbl">Rare values</div></div>
       </div>
+      <div class="tbl-label">
+        <span>Top ${cfg.top_n} by frequency</span>
+        <span class="card-search"><input type="text" placeholder="Filter…" oninput="filterCard('${esc(topKey)}', this.value)"></span>
+      </div>
+      <table data-tbl="${esc(topKey)}">
+        <thead><tr>
+          <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(topKey)}', this.checked)"></th>
+          <th class="sortable" onclick="sortTable('${esc(topKey)}','value')">Value <span class="sort-ind"></span></th>
+          <th class="r sortable" onclick="sortTable('${esc(topKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
+          <th class="r">%</th><th>Bar</th><th></th>
+        </tr></thead>
+        <tbody>${topRows}</tbody>
+      </table>
+      <div class="tbl-label">
+        <span>Rare values &mdash; seen &le; ${cfg.rare_threshold} times</span>
+        <span class="card-search"><input type="text" placeholder="Filter…" oninput="filterCard('${esc(rareKey)}', this.value)"></span>
+      </div>
+      <table data-tbl="${esc(rareKey)}">
+        <thead><tr>
+          <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(rareKey)}', this.checked)"></th>
+          <th class="sortable" onclick="sortTable('${esc(rareKey)}','value')">Value <span class="sort-ind"></span></th>
+          <th class="r sortable" onclick="sortTable('${esc(rareKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
+          <th>Bar</th>
+          ${cfg.anom_hints ? '<th class="anom-col">Anomaly</th>' : ''}
+          <th></th>
+        </tr></thead>
+        <tbody>${rareRows}</tbody>
+      </table>
     </div>
-    <div class="stats">
-      <div class="stat"><div class="stat-val">${fmt(r.total_unique)}</div><div class="stat-lbl">Unique values</div></div>
-      <div class="stat"><div class="stat-val">${fmt(r.total_hits)}</div><div class="stat-lbl">Total hits</div></div>
-      <div class="stat"><div class="stat-val">${fmt(r.rare.length)}</div><div class="stat-lbl">Rare values</div></div>
-    </div>
-    <div class="tbl-label">
-      <span>Top ${cfg.top_n} by frequency</span>
-      <span class="card-search"><input type="text" placeholder="Filter…" oninput="filterCard('${esc(topKey)}', this.value)"></span>
-    </div>
-    <table data-tbl="${esc(topKey)}">
-      <thead><tr>
-        <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(topKey)}', this.checked)"></th>
-        <th class="sortable" onclick="sortTable('${esc(topKey)}','value')">Value <span class="sort-ind"></span></th>
-        <th class="r sortable" onclick="sortTable('${esc(topKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
-        <th class="r">%</th><th>Bar</th><th></th>
-      </tr></thead>
-      <tbody>${topRows}</tbody>
-    </table>
-    <div class="tbl-label">
-      <span>Rare values &mdash; seen &le; ${cfg.rare_threshold} times</span>
-      <span class="card-search"><input type="text" placeholder="Filter…" oninput="filterCard('${esc(rareKey)}', this.value)"></span>
-    </div>
-    <table data-tbl="${esc(rareKey)}">
-      <thead><tr>
-        <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(rareKey)}', this.checked)"></th>
-        <th class="sortable" onclick="sortTable('${esc(rareKey)}','value')">Value <span class="sort-ind"></span></th>
-        <th class="r sortable" onclick="sortTable('${esc(rareKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
-        <th>Bar</th>
-        ${cfg.anom_hints ? '<th class="anom-col">Anomaly</th>' : ''}
-        <th></th>
-      </tr></thead>
-      <tbody>${rareRows}</tbody>
-    </table>
   </div>`;
 }
 
@@ -2961,6 +2972,25 @@ function filterCard(tblKey, q) {
     const v = tr.getAttribute("data-value") || "";
     tr.style.display = (!q || v.includes(searchState[tblKey])) ? "" : "none";
   });
+}
+
+function toggleCard(cardId) {
+  const body = document.getElementById(cardId);
+  const toggle = document.getElementById(cardId + "-toggle");
+  if (!body) return;
+  const show = body.style.display === "none";
+  body.style.display = show ? "" : "none";
+  if (toggle) toggle.innerHTML = show ? "&#9660;" : "&#9654;";
+}
+
+function expandAllCards() {
+  document.querySelectorAll(".card-body").forEach(el => el.style.display = "");
+  document.querySelectorAll(".card-toggle").forEach(el => el.innerHTML = "&#9660;");
+}
+
+function collapseAllCards() {
+  document.querySelectorAll(".card-body").forEach(el => el.style.display = "none");
+  document.querySelectorAll(".card-toggle").forEach(el => el.innerHTML = "&#9654;");
 }
 
 function rerenderCard(field) {
