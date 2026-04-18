@@ -1810,14 +1810,14 @@ function _srchClose(inp) {
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
-function addTag() { tags.push(arkimeTags[0] || ""); renderTags(); }
+function addTag() { tags.push(""); renderTags(); }
 function removeTag(i) { tags.splice(i, 1); renderTags(); }
 function renderTags() {
   document.getElementById("tagList").innerHTML = tags.map((t, i) => {
     if (arkimeTags.length) {
       return `<div class="field-row">
         <div class="srch-wrap" data-mode="tag-row" data-idx="${i}">
-          <input type="text" class="srch-inp" value="${esc(t)}" placeholder="Search tags…"
+          <input type="text" class="srch-inp" value="${esc(t)}" placeholder="Select or search…"
                  oninput="_srchRender(this,arkimeTags,this.value);tags[${i}]=this.value"
                  onfocus="_srchRender(this,arkimeTags,this.value)"
                  onblur="_srchClose(this)"
@@ -1829,7 +1829,7 @@ function renderTags() {
       </div>`;
     }
     return `<div class="field-row">
-      <input type="text" value="${esc(t)}" placeholder="e.g. mytag"
+      <input type="text" value="${esc(t)}" placeholder="Type a tag"
              oninput="tags[${i}]=this.value">
       <button class="rm-btn" onclick="removeTag(${i})" title="Remove">&#x2715;</button>
     </div>`;
@@ -1837,14 +1837,14 @@ function renderTags() {
 }
 
 // ── Fields ───────────────────────────────────────────────────────────────────
-function addField(val) { fields.push(val || (arkimeFields[0] || "")); renderFields(); }
+function addField(val) { fields.push(val || ""); renderFields(); }
 function removeField(i) { fields.splice(i, 1); renderFields(); }
 function renderFields() {
   document.getElementById("fieldList").innerHTML = fields.map((f, i) => {
     if (arkimeFields.length) {
       return `<div class="field-row">
         <div class="srch-wrap" data-mode="field" data-idx="${i}">
-          <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Search fields…"
+          <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Select or search…"
                  oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)"
@@ -1856,7 +1856,7 @@ function renderFields() {
       </div>`;
     }
     return `<div class="field-row">
-      <input type="text" value="${esc(f)}" placeholder="e.g. http.useragent"
+      <input type="text" value="${esc(f)}" placeholder="Type a field"
              oninput="fields[${i}]=this.value">
       <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
     </div>`;
