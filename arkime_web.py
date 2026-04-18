@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Arkime Analyzer — Web UI (v2)
+Arkime Analyzer — Web UI (v3)
 =============================
 Single-file web application. No third-party libraries required (stdlib only).
 
@@ -13,7 +13,20 @@ Options:
   --no-browser        Don't auto-open the browser
   --dev               Load index.html from disk if present (for UI iteration)
 
-What's new in v2:
+What's new in v3:
+  - Port anomaly scan with three modes:
+      1. Signature -> unexpected port (same JA3/UA on the wrong port)
+      2. Known port -> unexpected signature (non-DNS on 53, etc.)
+      3. Host -> port diversity (scanner/beacon shape per src IP)
+  - Saved baselines (mode 1): snapshot "normal" per-signature port
+    distributions and diff future scans against them to detect new
+    signatures, new ports on known signatures, and dominance shifts
+  - SSE progress streaming for long-running port scans
+  - Port chip UI with inline pivot + sessions drilldown
+  - Correlate/Sessions modals extended with "pin field" support
+  - Shannon entropy + port-share statistics for each signature
+
+What was new in v2:
   - Parallel per-field analysis (ThreadPoolExecutor)
   - Server-Sent Events progress stream during analysis
   - Named presets (save/load/delete full configs)
@@ -3693,7 +3706,7 @@ def main():
 
     print()
     print("=" * 50)
-    print("  Arkime Analyzer v2")
+    print("  Arkime Analyzer v3")
     print(f"  Running at: {url}")
     print("  Press Ctrl+C to stop")
     print("=" * 50)
