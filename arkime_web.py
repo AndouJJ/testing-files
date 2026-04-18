@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Arkime Analyzer — Web UI (v3)
-=============================
+Luxray — Web UI (v3)
+====================
 Single-file web application. No third-party libraries required (stdlib only).
 
 Run:   python arkime_web.py
@@ -1144,7 +1144,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Arkime Analyzer</title>
+<title>Luxray</title>
 <style>
 :root{
   --bg:#f0f2f5;--surface:#fff;--surface-2:#f9fafb;
@@ -1401,7 +1401,7 @@ tr.clean td{opacity:.75}
 <div id="app">
 
 <header>
-  <h1>Arkime Analyzer</h1>
+  <h1>Luxray</h1>
   <span class="sep">|</span>
   <span class="sub">Field Frequency &amp; Rarity Analysis</span>
   <button id="darkToggle" onclick="toggleDark()" title="Toggle dark mode">&#x1F319;</button>
@@ -3855,7 +3855,7 @@ class ThreadingHTTPServer(http.server.ThreadingHTTPServer):
 
 def main():
     global DEV_MODE, HTML_PATH_OVERRIDE
-    p = argparse.ArgumentParser(description="Arkime Analyzer — local web UI")
+    p = argparse.ArgumentParser(description="Luxray — local web UI")
     p.add_argument("--port",       type=int, default=8080,        help="Port to listen on (default: 8080)")
     p.add_argument("--host",       default="127.0.0.1",           help="Bind address (default: 127.0.0.1; use 0.0.0.0 in Docker)")
     p.add_argument("--no-browser", action="store_true",           help="Don't auto-open the browser")
@@ -3883,7 +3883,7 @@ def main():
 
     print()
     print("=" * 50)
-    print("  Arkime Analyzer v3")
+    print("  Luxray v3")
     print(f"  Running at: {url}")
     print("  Press Ctrl+C to stop")
     print("=" * 50)

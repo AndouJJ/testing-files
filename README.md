@@ -1,4 +1,4 @@
-# Arkime Analyzer
+# Luxray
 
 A web-based tool for analyzing network traffic captured by [Arkime](https://arkime.com/) (formerly Moloch). Automates the process of finding anomalies and interesting patterns without manually clicking through thousands of results.
 

@@ -115,7 +115,7 @@ def get_text(path):
 # 1. Home page
 print("\n=== Test 1: Home page ===")
 page = get_text("/")
-assert "Arkime Analyzer" in page
+assert "Luxray" in page
 assert f'window.__CSRF = "{CSRF}"' in page
 print(f"  ✓ Home page renders, CSRF injected ({len(page)} bytes)")
 
