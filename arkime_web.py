@@ -1757,6 +1757,11 @@ function toggleAuth() {
 function _srchRender(inp, opts, q) {
   const list = inp.parentElement.querySelector('.srch-list');
   if (!list) return;
+  if (!opts.length) {
+    list.innerHTML = '<div class="srch-none">Test connection to load options</div>';
+    list.style.display = 'block';
+    return;
+  }
   const lq = (q || "").toLowerCase();
   const filt = lq ? opts.filter(o => o.toLowerCase().includes(lq)) : opts;
   if (!filt.length) {
@@ -1813,54 +1818,40 @@ function _srchClose(inp) {
 function addTag() { tags.push(""); renderTags(); }
 function removeTag(i) { tags.splice(i, 1); renderTags(); }
 function renderTags() {
-  document.getElementById("tagList").innerHTML = tags.map((t, i) => {
-    if (arkimeTags.length) {
-      return `<div class="field-row">
-        <div class="srch-wrap" data-mode="tag-row" data-idx="${i}">
-          <input type="text" class="srch-inp" value="${esc(t)}" placeholder="Select or search…"
-                 oninput="_srchRender(this,arkimeTags,this.value);tags[${i}]=this.value"
-                 onfocus="_srchRender(this,arkimeTags,this.value)"
-                 onblur="_srchClose(this)"
-                 onchange="tags[${i}]=this.value">
-          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeTags)">▾</button>
-          <div class="srch-list"></div>
-        </div>
-        <button class="rm-btn" onclick="removeTag(${i})" title="Remove">&#x2715;</button>
-      </div>`;
-    }
-    return `<div class="field-row">
-      <input type="text" value="${esc(t)}" placeholder="Type a tag"
-             oninput="tags[${i}]=this.value">
+  document.getElementById("tagList").innerHTML = tags.map((t, i) =>
+    `<div class="field-row">
+      <div class="srch-wrap" data-mode="tag-row" data-idx="${i}">
+        <input type="text" class="srch-inp" value="${esc(t)}" placeholder="Select or search…"
+               oninput="_srchRender(this,arkimeTags,this.value);tags[${i}]=this.value"
+               onfocus="_srchRender(this,arkimeTags,this.value)"
+               onblur="_srchClose(this)"
+               onchange="tags[${i}]=this.value">
+        <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeTags)">▾</button>
+        <div class="srch-list"></div>
+      </div>
       <button class="rm-btn" onclick="removeTag(${i})" title="Remove">&#x2715;</button>
-    </div>`;
-  }).join("");
+    </div>`
+  ).join("");
 }
 
 // ── Fields ───────────────────────────────────────────────────────────────────
 function addField(val) { fields.push(val || ""); renderFields(); }
 function removeField(i) { fields.splice(i, 1); renderFields(); }
 function renderFields() {
-  document.getElementById("fieldList").innerHTML = fields.map((f, i) => {
-    if (arkimeFields.length) {
-      return `<div class="field-row">
-        <div class="srch-wrap" data-mode="field" data-idx="${i}">
-          <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Select or search…"
-                 oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
-                 onfocus="_srchRender(this,arkimeFields,this.value)"
-                 onblur="_srchClose(this)"
-                 onchange="fields[${i}]=this.value">
-          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">▾</button>
-          <div class="srch-list"></div>
-        </div>
-        <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
-      </div>`;
-    }
-    return `<div class="field-row">
-      <input type="text" value="${esc(f)}" placeholder="Type a field"
-             oninput="fields[${i}]=this.value">
+  document.getElementById("fieldList").innerHTML = fields.map((f, i) =>
+    `<div class="field-row">
+      <div class="srch-wrap" data-mode="field" data-idx="${i}">
+        <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Select or search…"
+               oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
+               onfocus="_srchRender(this,arkimeFields,this.value)"
+               onblur="_srchClose(this)"
+               onchange="fields[${i}]=this.value">
+        <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">▾</button>
+        <div class="srch-list"></div>
+      </div>
       <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
-    </div>`;
-  }).join("");
+    </div>`
+  ).join("");
 }
 
 // ── Allowlist ────────────────────────────────────────────────────────────────
