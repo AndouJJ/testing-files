@@ -1724,7 +1724,7 @@ body.dark ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .prog-fill{height:100%;background:#3b82f6;border-radius:3px;width:0%;transition:width .25s ease}
 .prog-done{font-size:.72rem;color:var(--text-4);text-align:center;margin-top:7px;display:flex;flex-direction:column;gap:2px;max-height:80px;overflow-y:auto}
 
-.run-header{background:var(--surface);border-radius:9px;padding:12px 16px;margin-bottom:14px;font-size:.78rem;color:var(--text-3);display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.run-header{background:var(--surface);border-radius:9px;padding:12px 16px;margin-bottom:14px;font-size:.78rem;color:var(--text-3);display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.12);position:sticky;top:0;z-index:100}
 .run-header strong{color:var(--text-1)}
 .run-tag{background:var(--surface-2);padding:2px 8px;border-radius:4px;font-size:.72rem}
 .run-header .spacer{flex:1}
