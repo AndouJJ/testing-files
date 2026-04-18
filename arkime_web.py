@@ -3418,8 +3418,9 @@ function renderSessionsInto(bodyId, data) {
     const sid     = s.id || "";
     const sStart  = fp ? Math.floor(fp/1000) : 0;
     const sEnd    = lp ? Math.floor(lp/1000)+1 : sStart+1;
+    const cleanBase = baseUrl.replace(/\/+$/, "");  // remove trailing slashes
     const arkLink = sid
-      ? `${baseUrl}/sessions?date=-1&startTime=${sStart}&stopTime=${sEnd}&expression=${encodeURIComponent("id=="+sid)}`
+      ? `${cleanBase}/sessions?date=-1&startTime=${sStart}&stopTime=${sEnd}&expression=${encodeURIComponent('id=="'+sid+'"')}`
       : "";
 
     return `<tr>
