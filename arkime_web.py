@@ -305,6 +305,30 @@ def do_arkime_fields(cfg):
         return {"ok": False, "fields": [], "message": str(e)}
 
 
+def do_arkime_tags(cfg):
+    tag_names, last_err = [], None
+    for path in ("/api/unique", "/unique.txt"):
+        try:
+            body = _get(cfg, path, {"exp": "tags", "counts": "1", "date": "-1"})
+            for line in body.strip().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                idx = line.rfind(",")
+                tag = line[:idx].strip() if idx != -1 else line
+                if tag:
+                    tag_names.append(tag)
+            break
+        except urllib.error.HTTPError as e:
+            last_err = f"HTTP {e.code}"
+        except Exception as e:
+            last_err = str(e)
+            break
+    if tag_names:
+        return {"ok": True, "tags": sorted(tag_names)}
+    return {"ok": False, "tags": [], "message": last_err or "No tags found"}
+
+
 # ==============================================================================
 # Cross-field correlation
 # ==============================================================================
@@ -1193,6 +1217,14 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 /* Tags */
 .tag-add-row{display:flex;gap:6px;margin-top:5px}
 .tag-add-row input{flex:1}
+.tag-add-row .srch-wrap{flex:1}
+.field-row .srch-wrap{flex:1}
+.srch-wrap{position:relative}
+.srch-list{position:absolute;z-index:300;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid #3b82f6;border-radius:6px;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none}
+.srch-opt{padding:5px 9px;font-size:.78rem;cursor:pointer;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srch-opt:hover{background:var(--surface-2);color:#3b82f6}
+.srch-none{padding:6px 9px;font-size:.78rem;color:var(--text-4);font-style:italic}
+.srch-hl{font-weight:700;color:#3b82f6}
 #tagList{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:20px}
 .pill{display:inline-flex;align-items:center;gap:3px;background:var(--tag-bg);color:var(--tag-fg);padding:2px 8px 2px 9px;border-radius:10px;font-size:.72rem;font-weight:600}
 .pill button{background:none;border:none;cursor:pointer;color:var(--tag-btn);font-size:.85rem;padding:0 0 0 2px;line-height:1;transition:color .15s!important}
@@ -1441,7 +1473,14 @@ tr.clean td{opacity:.75}
   <div class="sec">
     <div class="sec-title">Tag Filter</div>
     <div class="tag-add-row">
-      <input type="text" id="tagInput" placeholder="Type a tag name…" onkeydown="if(event.key==='Enter')addTag()">
+      <div class="srch-wrap" data-mode="tag">
+        <input type="text" id="tagInput" placeholder="Search or type a tag…"
+               oninput="_srchRender(this,arkimeTags,this.value)"
+               onfocus="_srchRender(this,arkimeTags,this.value)"
+               onblur="_srchClose(this)"
+               onkeydown="if(event.key==='Enter')addTag()">
+        <div class="srch-list"></div>
+      </div>
       <button class="btn-outline" onclick="addTag()">Add</button>
     </div>
     <div id="tagList"></div>
@@ -1671,6 +1710,7 @@ window.__CSRF = "__CSRF_TOKEN__";
 let tags          = [];
 let fields        = ["port.dst", "port.src", "http.useragent", "http.uri"];
 let arkimeFields  = [];
+let arkimeTags    = [];
 let lastResults = {};
 let rowData     = [];
 let lastCfg     = null;
@@ -1723,12 +1763,59 @@ function toggleAuth() {
   document.getElementById("apikeyField").style.display  = t === "apikey" ? "" : "none";
 }
 
+// ── Searchable dropdown ───────────────────────────────────────────────────────
+function _srchRender(inp, opts, q) {
+  const list = inp.parentElement.querySelector('.srch-list');
+  if (!list) return;
+  const lq = (q || "").toLowerCase();
+  const filt = lq ? opts.filter(o => o.toLowerCase().includes(lq)) : opts;
+  if (!filt.length) {
+    list.innerHTML = '<div class="srch-none">No matches</div>';
+  } else {
+    list.innerHTML = filt.slice(0, 150).map(o => {
+      let label;
+      if (lq) {
+        const i = o.toLowerCase().indexOf(lq);
+        label = i >= 0
+          ? esc(o.slice(0,i)) + `<span class="srch-hl">${esc(o.slice(i,i+lq.length))}</span>` + esc(o.slice(i+lq.length))
+          : esc(o);
+      } else {
+        label = esc(o);
+      }
+      return `<div class="srch-opt" data-val="${esc(o)}" onmousedown="event.preventDefault()" onclick="_srchPick(this)">${label}</div>`;
+    }).join('');
+  }
+  list.style.display = '';
+}
+
+function _srchPick(el) {
+  const wrap = el.closest('.srch-wrap');
+  const inp  = wrap.querySelector('input');
+  inp.value  = el.dataset.val;
+  wrap.querySelector('.srch-list').style.display = 'none';
+  const mode = wrap.dataset.mode;
+  if (mode === 'field') {
+    fields[parseInt(wrap.dataset.idx)] = el.dataset.val;
+  } else if (mode === 'tag') {
+    addTag();
+  }
+}
+
+function _srchClose(inp) {
+  setTimeout(() => {
+    const list = inp.parentElement && inp.parentElement.querySelector('.srch-list');
+    if (list) list.style.display = 'none';
+  }, 150);
+}
+
 // ── Tags ─────────────────────────────────────────────────────────────────────
 function addTag() {
   const inp = document.getElementById("tagInput");
   const val = inp.value.trim();
   if (val && !tags.includes(val)) { tags.push(val); renderTags(); }
   inp.value = "";
+  const list = inp.parentElement && inp.parentElement.querySelector('.srch-list');
+  if (list) list.style.display = 'none';
   inp.focus();
 }
 function removeTag(i) { tags.splice(i, 1); renderTags(); }
@@ -1744,12 +1831,15 @@ function removeField(i) { fields.splice(i, 1); renderFields(); }
 function renderFields() {
   document.getElementById("fieldList").innerHTML = fields.map((f, i) => {
     if (arkimeFields.length) {
-      // Ensure the current value appears even if not in the fetched list
-      const opts = (arkimeFields.includes(f) ? arkimeFields : [f, ...arkimeFields])
-        .map(o => `<option value="${esc(o)}"${o === f ? " selected" : ""}>${esc(o)}</option>`)
-        .join("");
       return `<div class="field-row">
-        <select onchange="fields[${i}]=this.value">${opts}</select>
+        <div class="srch-wrap" data-mode="field" data-idx="${i}">
+          <input type="text" value="${esc(f)}" placeholder="Search fields…"
+                 oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)"
+                 onchange="fields[${i}]=this.value">
+          <div class="srch-list"></div>
+        </div>
         <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
       </div>`;
     }
@@ -1907,7 +1997,7 @@ async function testConn() {
     const cfg = getConfig();
     const res = await apiFetch("/api/test", cfg);
     setConn(res.ok ? "ok" : "err", res.message);
-    if (res.ok) loadArkimeFields(cfg);
+    if (res.ok) { loadArkimeFields(cfg); loadArkimeTags(cfg); }
   } catch(e) {
     setConn("err", "Request failed: " + e.message);
   }
@@ -1921,6 +2011,13 @@ async function loadArkimeFields(cfg) {
       arkimeFields = res.fields;
       renderFields();
     }
+  } catch(_) {}
+}
+
+async function loadArkimeTags(cfg) {
+  try {
+    const res = await apiFetch("/api/arkime-tags", cfg);
+    if (res.ok && res.tags.length) arkimeTags = res.tags;
   } catch(_) {}
 }
 function setConn(state, msg) {
@@ -3424,6 +3521,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif self.path == "/api/arkime-fields":
             try:    self._json(200, do_arkime_fields(cfg))
+            except Exception as e: self._json(200, {"error": str(e)})
+
+        elif self.path == "/api/arkime-tags":
+            try:    self._json(200, do_arkime_tags(cfg))
             except Exception as e: self._json(200, {"error": str(e)})
 
         elif self.path == "/api/settings":
