@@ -2184,7 +2184,10 @@ tr.clean td{opacity:.75}
         </div>
       </div>
 
-      <button class="btn-primary" id="psRunBtn" onclick="runPortScan()" style="margin-top:10px">&#9654; Run Port Scan</button>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-primary" id="psRunBtn" onclick="runPortScan()" style="flex:1">&#9654; Run Port Scan</button>
+        <button class="btn-outline" id="psStopBtn" onclick="stopPortScan()" style="display:none;color:#ef4444;border-color:#ef4444">&#9632; Stop</button>
+      </div>
     </div>
   </div>
 
@@ -3603,6 +3606,8 @@ function getPortScanCfg() {
   return out;
 }
 
+let psXhr = null;  // track current port scan request
+
 async function runPortScan() {
   const cfg = getPortScanCfg();
   if (!cfg.url) { toast("Please enter an Arkime URL.", "err"); return; }
@@ -3621,6 +3626,7 @@ async function runPortScan() {
       </div>
     </div>`;
   document.getElementById("psRunBtn").disabled = true;
+  document.getElementById("psStopBtn").style.display = "";
 
   try {
     const data = await runPortScanStreaming(cfg);
@@ -3636,20 +3642,38 @@ async function runPortScan() {
       }
     }
   } catch(e) {
-    showError(panel, "Port scan error", e.message);
+    if (e.message !== "Stopped by user") {
+      showError(panel, "Port scan error", e.message);
+    }
   } finally {
     document.getElementById("psRunBtn").disabled = false;
+    document.getElementById("psStopBtn").style.display = "none";
+    psXhr = null;
   }
+}
+
+function stopPortScan() {
+  if (psXhr) {
+    psXhr.abort();
+    psXhr = null;
+    const panel = document.getElementById("results");
+    panel.innerHTML = `<div class="placeholder"><div class="ico">&#x1F6D1;</div><p>Port scan stopped.</p></div>`;
+    toast("Port scan stopped", "ok");
+  }
+  document.getElementById("psRunBtn").disabled = false;
+  document.getElementById("psStopBtn").style.display = "none";
 }
 
 function runPortScanStreaming(cfg) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    psXhr = xhr;  // store globally for stop functionality
     xhr.open("POST", "/api/port-scan-stream", true);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("X-CSRF-Token", window.__CSRF);
     let lastIdx = 0;
     let finalResult = null;
+    let stopped = false;
 
     xhr.onreadystatechange = function() {
       if (xhr.readyState >= 3) {
@@ -3675,7 +3699,7 @@ function runPortScanStreaming(cfg) {
       }
       if (xhr.readyState === 4) {
         if (finalResult) resolve(finalResult);
-        else if (xhr.status === 0) reject(new Error("Connection closed"));
+        else if (xhr.status === 0) reject(new Error("Stopped by user"));
         else reject(new Error(`HTTP ${xhr.status}`));
       }
     };
