@@ -2900,8 +2900,8 @@ function resultCard(r, cfg) {
       <table data-tbl="${esc(topKey)}">
         <thead><tr>
           <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(topKey)}', this.checked)"></th>
-          <th class="sortable" onclick="sortTable('${esc(topKey)}','value')">Value <span class="sort-ind"></span></th>
-          <th class="r sortable" onclick="sortTable('${esc(topKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
+          <th class="sortable" onclick="event.stopPropagation();sortTable('${esc(topKey)}','value')">Value <span class="sort-ind"></span></th>
+          <th class="r sortable" onclick="event.stopPropagation();sortTable('${esc(topKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
           <th class="r">%</th><th>Bar</th><th></th>
         </tr></thead>
         <tbody>${topRows}</tbody>
@@ -2913,8 +2913,8 @@ function resultCard(r, cfg) {
       <table data-tbl="${esc(rareKey)}">
         <thead><tr>
           <th class="chk-col"><input type="checkbox" onchange="toggleCardSel('${esc(rareKey)}', this.checked)"></th>
-          <th class="sortable" onclick="sortTable('${esc(rareKey)}','value')">Value <span class="sort-ind"></span></th>
-          <th class="r sortable" onclick="sortTable('${esc(rareKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
+          <th class="sortable" onclick="event.stopPropagation();sortTable('${esc(rareKey)}','value')">Value <span class="sort-ind"></span></th>
+          <th class="r sortable" onclick="event.stopPropagation();sortTable('${esc(rareKey)}','count')">Count <span class="sort-ind">&#x25BC;</span></th>
           <th>Bar</th>
           ${cfg.anom_hints ? '<th class="anom-col">Anomaly</th>' : ''}
           <th></th>
