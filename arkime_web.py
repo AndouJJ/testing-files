@@ -2615,15 +2615,10 @@ function applyPsConfig(cfg) {
     // Restore byte patterns
     if (cfg.patterns && cfg.patterns.length) {
       document.getElementById("bytePatternList").innerHTML = "";
+      bytePatternId = 0;
       for (const p of cfg.patterns) {
-        addBytePattern();
-        const rows = document.querySelectorAll("#bytePatternList .byte-pattern-row");
-        const lastRow = rows[rows.length - 1];
-        if (lastRow) {
-          lastRow.querySelector(".bp-pattern").value = p.pattern || "";
-          lastRow.querySelector(".bp-type").value = p.type || "hex";
-          lastRow.querySelector(".bp-ports").value = (p.expected_ports || []).join(", ");
-        }
+        const portsStr = (p.expected_ports || []).join(", ");
+        addBytePattern(p.pattern || "", p.type || "hex", portsStr);
       }
     }
   }
