@@ -1425,7 +1425,8 @@ def _strip_password(d):
 
 def do_save_settings(data):
     store = _load_store()
-    store["current"] = _strip_password(data)
+    # Save credentials for air-gapped environments - auto-connect on reload
+    store["current"] = data
     _save_store(store)
     return {"ok": True}
 
@@ -2439,6 +2440,7 @@ function loadConfig(c) {
   const set = (id, v) => { if (v !== undefined && v !== null) document.getElementById(id).value = v; };
   set("url",        c.url);
   set("username",   c.username);
+  set("password",   c.password);
   set("apiKey",     c.api_key);
   set("expression", c.expression);
   set("topN",       c.top_n);
@@ -3171,7 +3173,14 @@ async function loadSettingsFromServer() {
     const res = await fetch("/api/settings");
     if (!res.ok) return;
     const saved = await res.json();
-    if (saved && !saved.error && Object.keys(saved).length) loadConfig(saved);
+    if (saved && !saved.error && Object.keys(saved).length) {
+      loadConfig(saved);
+      toggleAuth();
+      // Auto-connect if credentials are present
+      if (saved.url && saved.username && saved.password) {
+        setTimeout(() => testConn(), 100);
+      }
+    }
   } catch (_) {}
 }
 
