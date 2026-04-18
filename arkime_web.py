@@ -1220,6 +1220,9 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 .tag-add-row .srch-wrap{flex:1}
 .field-row .srch-wrap{flex:1}
 .srch-wrap{position:relative}
+.srch-inp{padding-right:28px!important}
+.srch-arrow{position:absolute;right:0;top:0;bottom:0;width:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-3);border:none;border-left:1px solid var(--input-border);background:none;border-radius:0 6px 6px 0;font-size:.7rem}
+.srch-arrow:hover{color:#3b82f6;background:var(--surface-2)}
 .srch-list{position:absolute;z-index:300;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid #3b82f6;border-radius:6px;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none}
 .srch-opt{padding:5px 9px;font-size:.78rem;cursor:pointer;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srch-opt:hover{background:var(--surface-2);color:#3b82f6}
@@ -1472,17 +1475,16 @@ tr.clean td{opacity:.75}
 
   <div class="sec">
     <div class="sec-title">Tag Filter</div>
-    <div class="tag-add-row">
-      <div class="srch-wrap" data-mode="tag">
-        <input type="text" id="tagInput" placeholder="Search or type a tag…"
-               oninput="_srchRender(this,arkimeTags,this.value)"
-               onfocus="_srchRender(this,arkimeTags,this.value)"
-               onblur="_srchClose(this)"
-               onkeydown="if(event.key==='Enter')addTag()">
-        <div class="srch-list"></div>
-      </div>
-      <button class="btn-outline" onclick="addTag()">Add</button>
+    <div class="srch-wrap" data-mode="tag">
+      <input type="text" id="tagInput" class="srch-inp" placeholder="Search or type a tag…"
+             oninput="_srchRender(this,arkimeTags,this.value)"
+             onfocus="_srchRender(this,arkimeTags,this.value)"
+             onblur="_srchClose(this)"
+             onkeydown="if(event.key==='Enter')addTag()">
+      <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeTags)">▾</button>
+      <div class="srch-list"></div>
     </div>
+    <button class="add-btn" onclick="addTag()">+ Add tag</button>
     <div id="tagList"></div>
     <label style="margin-top:8px">Match logic</label>
     <div class="radio-row">
@@ -1775,9 +1777,9 @@ function _srchRender(inp, opts, q) {
     list.innerHTML = filt.slice(0, 150).map(o => {
       let label;
       if (lq) {
-        const i = o.toLowerCase().indexOf(lq);
-        label = i >= 0
-          ? esc(o.slice(0,i)) + `<span class="srch-hl">${esc(o.slice(i,i+lq.length))}</span>` + esc(o.slice(i+lq.length))
+        const idx = o.toLowerCase().indexOf(lq);
+        label = idx >= 0
+          ? esc(o.slice(0,idx)) + `<span class="srch-hl">${esc(o.slice(idx,idx+lq.length))}</span>` + esc(o.slice(idx+lq.length))
           : esc(o);
       } else {
         label = esc(o);
@@ -1785,7 +1787,18 @@ function _srchRender(inp, opts, q) {
       return `<div class="srch-opt" data-val="${esc(o)}" onmousedown="event.preventDefault()" onclick="_srchPick(this)">${label}</div>`;
     }).join('');
   }
-  list.style.display = '';
+  list.style.display = 'block';
+}
+
+function _srchToggle(inp, opts) {
+  const list = inp.parentElement && inp.parentElement.querySelector('.srch-list');
+  if (!list) return;
+  if (list.style.display === 'block') {
+    list.style.display = 'none';
+  } else {
+    _srchRender(inp, opts, inp.value);
+    inp.focus();
+  }
 }
 
 function _srchPick(el) {
@@ -1833,11 +1846,12 @@ function renderFields() {
     if (arkimeFields.length) {
       return `<div class="field-row">
         <div class="srch-wrap" data-mode="field" data-idx="${i}">
-          <input type="text" value="${esc(f)}" placeholder="Search fields…"
+          <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Search fields…"
                  oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)"
                  onchange="fields[${i}]=this.value">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">▾</button>
           <div class="srch-list"></div>
         </div>
         <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
