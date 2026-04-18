@@ -2010,12 +2010,33 @@ tr.clean td{opacity:.75}
 
       <div id="psMode_host_diversity" style="display:none">
         <label>Host field</label>
-        <input type="text" id="psHostField" value="ip.src">
+        <div class="srch-wrap" data-mode="ps-host">
+          <input type="text" id="psHostField" class="srch-inp" value="ip.src" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
         <label>Port field</label>
-        <input type="text" id="psPortField3" value="port.dst">
+        <div class="srch-wrap" data-mode="ps-port3">
+          <input type="text" id="psPortField3" class="srch-inp" value="port.dst" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
         <label>Pin to signature value <span style="font-weight:400;color:#9ca3af">(optional)</span></label>
         <div class="row2">
-          <input type="text" id="psPinField" placeholder="field (e.g. tls.ja3)">
+          <div class="srch-wrap" data-mode="ps-pin" style="flex:1">
+            <input type="text" id="psPinField" class="srch-inp" placeholder="field (e.g. tls.ja3)"
+                   oninput="_srchRender(this,arkimeFields,this.value)"
+                   onfocus="_srchRender(this,arkimeFields,this.value)"
+                   onblur="_srchClose(this)">
+            <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+            <div class="srch-list"></div>
+          </div>
           <input type="text" id="psPinValue" placeholder="value">
         </div>
         <div class="row2" style="margin-top:8px">
@@ -2046,7 +2067,14 @@ tr.clean td{opacity:.75}
 
       <div id="psMode_byte_pattern" style="display:none">
         <label>Port field</label>
-        <input type="text" id="psPortField4" value="port.dst">
+        <div class="srch-wrap" data-mode="ps-port4">
+          <input type="text" id="psPortField4" class="srch-inp" value="port.dst" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
         <label>Byte patterns</label>
         <div id="bytePatternList"></div>
         <div class="btn-row" style="margin-top:8px">
