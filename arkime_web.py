@@ -1951,15 +1951,14 @@ tr.clean td{opacity:.75}
 
       <div id="psMode_sig_to_port">
         <label>Signature field</label>
-        <select id="psSigField" onchange="syncPsCustom('psSigField','psSigFieldCustom')">
-          <option value="tls.ja3">tls.ja3</option>
-          <option value="tls.ja3s">tls.ja3s</option>
-          <option value="http.useragent">http.useragent</option>
-          <option value="protocols">protocols</option>
-          <option value="cert.issuer">cert.issuer</option>
-          <option value="__custom__">Custom&hellip;</option>
-        </select>
-        <input type="text" id="psSigFieldCustom" placeholder="custom field name" style="display:none;margin-top:4px">
+        <div class="srch-wrap" data-mode="ps-sig1">
+          <input type="text" id="psSigField" class="srch-inp" value="tls.ja3" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
         <label>Port field</label>
         <input type="text" id="psPortField" value="port.dst">
         <div class="row2" style="margin-top:8px">
@@ -1990,13 +1989,14 @@ tr.clean td{opacity:.75}
 
       <div id="psMode_port_to_sig" style="display:none">
         <label>Signature field</label>
-        <select id="psSigField2" onchange="syncPsCustom('psSigField2','psSigField2Custom')">
-          <option value="protocols">protocols</option>
-          <option value="tls.ja3">tls.ja3</option>
-          <option value="http.useragent">http.useragent</option>
-          <option value="__custom__">Custom&hellip;</option>
-        </select>
-        <input type="text" id="psSigField2Custom" placeholder="custom field name" style="display:none;margin-top:4px">
+        <div class="srch-wrap" data-mode="ps-sig2">
+          <input type="text" id="psSigField2" class="srch-inp" value="protocols" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
         <label>Port field</label>
         <input type="text" id="psPortField2" value="port.dst">
         <label>Ports to check <span style="font-weight:400;color:#9ca3af">(one per line)</span></label>
@@ -3319,12 +3319,10 @@ function syncPsCustom(selId, customId) {
 function psSignatureField() {
   const mode = document.getElementById("psMode").value;
   if (mode === "sig_to_port") {
-    const s = document.getElementById("psSigField").value;
-    return s === "__custom__" ? document.getElementById("psSigFieldCustom").value.trim() : s;
+    return document.getElementById("psSigField").value.trim();
   }
   if (mode === "port_to_sig") {
-    const s = document.getElementById("psSigField2").value;
-    return s === "__custom__" ? document.getElementById("psSigField2Custom").value.trim() : s;
+    return document.getElementById("psSigField2").value.trim();
   }
   return "";
 }
