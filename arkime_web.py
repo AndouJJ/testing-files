@@ -1215,9 +1215,6 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 .quick-btn:hover{border-color:#3b82f6;color:#3b82f6}
 
 /* Tags */
-.tag-add-row{display:flex;gap:6px;margin-top:5px}
-.tag-add-row input{flex:1}
-.tag-add-row .srch-wrap{flex:1}
 .field-row .srch-wrap{flex:1}
 .srch-wrap{position:relative}
 .srch-inp{padding-right:28px!important}
@@ -1475,17 +1472,8 @@ tr.clean td{opacity:.75}
 
   <div class="sec">
     <div class="sec-title">Tag Filter</div>
-    <div class="srch-wrap" data-mode="tag">
-      <input type="text" id="tagInput" class="srch-inp" placeholder="Search or type a tag…"
-             oninput="_srchRender(this,arkimeTags,this.value)"
-             onfocus="_srchRender(this,arkimeTags,this.value)"
-             onblur="_srchClose(this)"
-             onkeydown="if(event.key==='Enter')addTag()">
-      <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeTags)">▾</button>
-      <div class="srch-list"></div>
-    </div>
-    <button class="add-btn" onclick="addTag()">+ Add tag</button>
     <div id="tagList"></div>
+    <button class="add-btn" onclick="addTag()">+ Add tag</button>
     <label style="margin-top:8px">Match logic</label>
     <div class="radio-row">
       <label><input type="radio" name="tagsMatch" value="any" checked> Any tag (OR)</label>
@@ -1808,9 +1796,9 @@ function _srchPick(el) {
   wrap.querySelector('.srch-list').style.display = 'none';
   const mode = wrap.dataset.mode;
   if (mode === 'field') {
-    fields[parseInt(wrap.dataset.idx)] = el.dataset.val;
-  } else if (mode === 'tag') {
-    addTag();
+    fields[parseInt(wrap.dataset.idx)] = val;
+  } else if (mode === 'tag-row') {
+    tags[parseInt(wrap.dataset.idx)] = val;
   }
 }
 
@@ -1822,20 +1810,30 @@ function _srchClose(inp) {
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
-function addTag() {
-  const inp = document.getElementById("tagInput");
-  const val = inp.value.trim();
-  if (val && !tags.includes(val)) { tags.push(val); renderTags(); }
-  inp.value = "";
-  const list = inp.parentElement && inp.parentElement.querySelector('.srch-list');
-  if (list) list.style.display = 'none';
-  inp.focus();
-}
+function addTag() { tags.push(arkimeTags[0] || ""); renderTags(); }
 function removeTag(i) { tags.splice(i, 1); renderTags(); }
 function renderTags() {
-  document.getElementById("tagList").innerHTML = tags.map((t, i) =>
-    `<span class="pill">${esc(t)}<button onclick="removeTag(${i})" title="Remove">&#x2715;</button></span>`
-  ).join("");
+  document.getElementById("tagList").innerHTML = tags.map((t, i) => {
+    if (arkimeTags.length) {
+      return `<div class="field-row">
+        <div class="srch-wrap" data-mode="tag-row" data-idx="${i}">
+          <input type="text" class="srch-inp" value="${esc(t)}" placeholder="Search tags…"
+                 oninput="_srchRender(this,arkimeTags,this.value);tags[${i}]=this.value"
+                 onfocus="_srchRender(this,arkimeTags,this.value)"
+                 onblur="_srchClose(this)"
+                 onchange="tags[${i}]=this.value">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeTags)">▾</button>
+          <div class="srch-list"></div>
+        </div>
+        <button class="rm-btn" onclick="removeTag(${i})" title="Remove">&#x2715;</button>
+      </div>`;
+    }
+    return `<div class="field-row">
+      <input type="text" value="${esc(t)}" placeholder="e.g. mytag"
+             oninput="tags[${i}]=this.value">
+      <button class="rm-btn" onclick="removeTag(${i})" title="Remove">&#x2715;</button>
+    </div>`;
+  }).join("");
 }
 
 // ── Fields ───────────────────────────────────────────────────────────────────
@@ -2031,7 +2029,7 @@ async function loadArkimeFields(cfg) {
 async function loadArkimeTags(cfg) {
   try {
     const res = await apiFetch("/api/arkime-tags", cfg);
-    if (res.ok && res.tags.length) arkimeTags = res.tags;
+    if (res.ok && res.tags.length) { arkimeTags = res.tags; renderTags(); }
   } catch(_) {}
 }
 function setConn(state, msg) {
