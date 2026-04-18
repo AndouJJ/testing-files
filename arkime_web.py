@@ -3392,14 +3392,15 @@ function renderSessionsInto(bodyId, data) {
   const baseUrl = document.getElementById("url").value.trim();
 
   const rows = sessions.map(s => {
-    const srcIp   = s["ip.src"]   || s.srcIp   || "—";
-    const dstIp   = s["ip.dst"]   || s.dstIp   || "—";
-    const srcPort = s["port.src"] || s.srcPort  || "";
-    const dstPort = s["port.dst"] || s.dstPort  || "";
+    // Handle both flat and nested Arkime response formats
+    const srcIp   = s.source?.ip || s["ip.src"] || s.srcIp || "—";
+    const dstIp   = s.destination?.ip || s["ip.dst"] || s.dstIp || "—";
+    const srcPort = s.source?.port || s["port.src"] || s.srcPort || "";
+    const dstPort = s.destination?.port || s["port.dst"] || s.dstPort || "";
     const proto   = Array.isArray(s.protocols) ? s.protocols.join(", ")
                   : (s.protocols || s.ipProtocol || "—");
-    const bytes   = s.totBytes || s.totDataBytes || 0;
-    const pkts    = s["network.packets"] || s.packets || s.totPackets || 0;
+    const bytes   = s.network?.bytes || s.totBytes || s.totDataBytes || 0;
+    const pkts    = s.network?.packets || s["network.packets"] || s.packets || s.totPackets || 0;
     const tagsVal = Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || "");
     const node    = s.node || "";
     const fmtB    = bytes > 1048576 ? (bytes/1048576).toFixed(1)+"M"
