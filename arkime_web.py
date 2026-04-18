@@ -559,8 +559,8 @@ def do_sessions(cfg):
 
     params = {
         "length": str(min(int(cfg.get("session_limit", 100)), 500)),
-        "fields": "ip.src,ip.dst,port.src,port.dst,firstPacket,lastPacket,"
-                  "totBytes,network.packets,protocols,node,tags",
+        "fields": "id,ip.src,ip.dst,port.src,port.dst,firstPacket,lastPacket,"
+                  "network.bytes,network.packets,ipProtocol,protocols,node,tags",
         "order":  "firstPacket:desc",
     }
     params.update(_time_params(cfg))
@@ -3406,16 +3406,16 @@ function renderSessionTable(bodyId, expression, total) {
   const cleanBase = baseUrl.replace(/\/+$/, "");
 
   const rows = sessionData.map(s => {
-    // Handle both flat and nested Arkime response formats
-    const srcIp   = s.source?.ip || s["ip.src"] || s.srcIp || "—";
-    const dstIp   = s.destination?.ip || s["ip.dst"] || s.dstIp || "—";
-    const srcPort = s.source?.port || s["port.src"] || s.srcPort || "";
-    const dstPort = s.destination?.port || s["port.dst"] || s.dstPort || "";
+    // Handle both flat (when fields= specified) and nested Arkime response formats
+    const srcIp   = s["ip.src"] || s.source?.ip || s.srcIp || "—";
+    const dstIp   = s["ip.dst"] || s.destination?.ip || s.dstIp || "—";
+    const srcPort = s["port.src"] || s.source?.port || s.srcPort || "";
+    const dstPort = s["port.dst"] || s.destination?.port || s.dstPort || "";
     const ipProto = s.ipProtocol;
     const proto   = Array.isArray(s.protocols) && s.protocols.length ? s.protocols.join(", ")
                   : (s.protocols || IP_PROTO_MAP[ipProto] || (ipProto ? `IP:${ipProto}` : "—"));
-    const bytes   = s.network?.bytes || s.totDataBytes || s.totBytes || 0;
-    const pkts    = s.network?.packets || s["network.packets"] || s.packets || s.totPackets || 0;
+    const bytes   = s["network.bytes"] || s.network?.bytes || s.totDataBytes || s.totBytes || 0;
+    const pkts    = s["network.packets"] || s.network?.packets || s.packets || s.totPackets || 0;
     const tagsVal = Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || "");
     const node    = s.node || "";
     const fmtB    = bytes > 1048576 ? (bytes/1048576).toFixed(1)+"M"
@@ -3431,10 +3431,13 @@ function renderSessionTable(bodyId, expression, total) {
               : `${(durMs/3600000).toFixed(1)}h`;
 
     const sid     = s.id || "";
+    // Session ID format is "dbIndex@sessionId" - extract the sessionId part for search
+    const sessionId = sid.includes("@") ? sid.split("@")[1] : sid;
     const sStart  = fp ? Math.floor(fp/1000) : 0;
     const sEnd    = lp ? Math.floor(lp/1000)+1 : sStart+1;
-    const arkLink = sid
-      ? `${cleanBase}/sessions?date=-1&startTime=${sStart}&stopTime=${sEnd}&expression=${encodeURIComponent('id=="'+sid+'"')}`
+    // Link to sessions page - search by sessionId without the db prefix
+    const arkLink = sessionId
+      ? `${cleanBase}/sessions?date=-1&startTime=${sStart}&stopTime=${sEnd}&expression=${encodeURIComponent('id=='+sessionId)}`
       : "";
 
     // Store computed values for sorting
