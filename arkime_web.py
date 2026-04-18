@@ -116,6 +116,152 @@ def _get(cfg, path, params=None):
         return r.read().decode("utf-8", errors="replace")
 
 
+def _get_arkime_session(cfg):
+    """Get an authenticated session with Arkime (cookie + token)."""
+    base_url = cfg["url"].rstrip("/")
+    timeout = int(cfg.get("timeout_secs", 60))
+    ctx = _ssl_ctx(cfg)
+
+    cookie_handler = urllib.request.HTTPCookieProcessor()
+
+    if cfg.get("auth_type") == "digest":
+        user = cfg.get("username", "") or ""
+        pwd  = cfg.get("password", "") or ""
+        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+        pwd_mgr.add_password(None, base_url, user, pwd)
+        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
+        if ctx:
+            opener = urllib.request.build_opener(
+                auth_handler,
+                cookie_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(auth_handler, cookie_handler)
+    else:
+        if ctx:
+            opener = urllib.request.build_opener(
+                cookie_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(cookie_handler)
+
+    # Make initial request to get session cookie
+    req = urllib.request.Request(base_url + "/api/user")
+    h = _auth_header(cfg)
+    if h and cfg.get("auth_type") != "digest":
+        req.add_header("Authorization", h)
+
+    with opener.open(req, timeout=timeout) as r:
+        user_data = json.loads(r.read().decode("utf-8", errors="replace"))
+
+    # Extract CSRF token from cookies or user data
+    token = None
+    for cookie in cookie_handler.cookiejar:
+        if cookie.name == "ARKIME-COOKIE":
+            # Parse the cookie value for the token
+            pass
+
+    return opener, cookie_handler, user_data
+
+
+def _post_with_session(cfg, path, body=None):
+    """POST JSON to Arkime using an authenticated session with cookie."""
+    import http.cookiejar
+    base_url = cfg["url"].rstrip("/")
+    url = base_url + path
+    timeout = int(cfg.get("timeout_secs", 1800))
+    ctx = _ssl_ctx(cfg)
+    data = json.dumps(body).encode("utf-8") if body else b"{}"
+
+    cj = http.cookiejar.CookieJar()
+    cookie_handler = urllib.request.HTTPCookieProcessor(cj)
+
+    if cfg.get("auth_type") == "digest":
+        user = cfg.get("username", "") or ""
+        pwd  = cfg.get("password", "") or ""
+        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+        pwd_mgr.add_password(None, base_url, user, pwd)
+        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
+        if ctx:
+            opener = urllib.request.build_opener(
+                auth_handler,
+                cookie_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(auth_handler, cookie_handler)
+    else:
+        if ctx:
+            opener = urllib.request.build_opener(
+                cookie_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(cookie_handler)
+
+    # Step 1: Hit main page to get ARKIME-COOKIE
+    init_req = urllib.request.Request(base_url + "/")
+    h = _auth_header(cfg)
+    if h and cfg.get("auth_type") != "digest":
+        init_req.add_header("Authorization", h)
+    with opener.open(init_req, timeout=timeout) as r:
+        r.read()
+
+    # Step 2: Extract cookie value for x-arkime-cookie header
+    cookie_val = None
+    for c in cj:
+        if c.name == "ARKIME-COOKIE":
+            cookie_val = urllib.parse.unquote(c.value)
+            break
+
+    # Step 3: POST with cookie header
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    if cookie_val:
+        req.add_header("x-arkime-cookie", cookie_val)
+    if h and cfg.get("auth_type") != "digest":
+        req.add_header("Authorization", h)
+
+    with opener.open(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", errors="replace"))
+
+
+def _post(cfg, path, body=None):
+    """POST JSON to Arkime and return parsed JSON response."""
+    url = cfg["url"].rstrip("/") + path
+    timeout = int(cfg.get("timeout_secs", 1800))
+    ctx = _ssl_ctx(cfg)
+    data = json.dumps(body).encode("utf-8") if body else b"{}"
+
+    if cfg.get("auth_type") == "digest":
+        user = cfg.get("username", "") or ""
+        pwd  = cfg.get("password", "") or ""
+        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+        pwd_mgr.add_password(None, url, user, pwd)
+        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
+        if ctx:
+            opener = urllib.request.build_opener(
+                auth_handler,
+                urllib.request.HTTPSHandler(context=ctx),
+            )
+        else:
+            opener = urllib.request.build_opener(auth_handler)
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        with opener.open(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8", errors="replace"))
+
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    h = _auth_header(cfg)
+    if h:
+        req.add_header("Authorization", h)
+    with urllib.request.urlopen(req, context=ctx, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", errors="replace"))
+
+
 def _parse_dt(s):
     for fmt in (
         "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
@@ -333,6 +479,19 @@ def do_arkime_tags(cfg):
 # Cross-field correlation
 # ==============================================================================
 
+def _is_ip_field(field):
+    """Check if a field is an IP-type field that shouldn't have quoted values."""
+    ip_fields = {"ip.src", "ip.dst", "ip", "srcIp", "dstIp", "source.ip", "destination.ip"}
+    return field in ip_fields or field.startswith("ip.")
+
+
+def _format_value(field, v):
+    """Format a value for an Arkime expression - IPs unquoted, others quoted."""
+    if _is_ip_field(field):
+        return str(v)
+    return f'"{_esc_val(v)}"'
+
+
 def _pivot_expression(pivot_field, pivot_values, match="any"):
     """Build an expression clause for one or more pivot values."""
     if not pivot_values:
@@ -340,7 +499,7 @@ def _pivot_expression(pivot_field, pivot_values, match="any"):
     if isinstance(pivot_values, str):
         pivot_values = [pivot_values]
     op = " || " if match == "any" else " && "
-    parts = [f'{pivot_field} == "{_esc_val(v)}"' for v in pivot_values]
+    parts = [f'{pivot_field} == {_format_value(pivot_field, v)}' for v in pivot_values]
     return f"({op.join(parts)})" if len(parts) > 1 else parts[0]
 
 
@@ -819,6 +978,248 @@ def do_port_scan_host_diversity(cfg, progress=None):
             "port_ratio_threshold": ratio_thresh,
             "max_hosts":            max_hosts,
         },
+    }
+
+
+# ==============================================================================
+# Mode 4: Byte pattern → port check (uses Hunt API)
+# ==============================================================================
+
+def _get_session_count(cfg):
+    """Get the total number of sessions matching the current query."""
+    params = {"length": "0", "date": "-1"}
+    params.update(_time_params(cfg))
+    expr = _build_expr(cfg)
+    if expr:
+        params["expression"] = expr
+    try:
+        body = _get(cfg, "/api/sessions", params)
+        if not body or not body.strip():
+            return 1000
+        data = json.loads(body) if isinstance(body, str) else body
+        return data.get("recordsFiltered", data.get("recordsTotal", 1000))
+    except Exception:
+        return 1000
+
+
+def _create_hunt(cfg, name, search_text, search_type, src=True, dst=True):
+    """
+    Create a hunt job in Arkime to search raw packet payloads.
+    search_type: 'ascii', 'asciicase', 'hex', or 'regex'
+    Returns the hunt ID.
+    """
+    time_p = _time_params(cfg)
+    total_sessions = _get_session_count(cfg)
+
+    body = {
+        "totalSessions": total_sessions,
+        "name": name,
+        "size": "10000",
+        "search": search_text,
+        "searchType": search_type,
+        "type": "raw",
+        "src": src,
+        "dst": dst,
+        "query": {
+            "startTime": int(time_p["startTime"]),
+            "stopTime": int(time_p["stopTime"]),
+        },
+    }
+    expr = _build_expr(cfg)
+    if expr:
+        body["query"]["expression"] = expr
+
+    resp = _post_with_session(cfg, "/api/hunt", body)
+    if "hunt" in resp and "id" in resp["hunt"]:
+        return resp["hunt"]["id"]
+    if "id" in resp:
+        return resp["id"]
+    raise RuntimeError(f"Failed to create hunt: {resp}")
+
+
+def _get_hunt_status(cfg, hunt_id):
+    """Get the status and results of a hunt."""
+    params = {"date": "-1"}
+    params.update(_time_params(cfg))
+    body = _get(cfg, f"/api/hunts", params)
+    if not body or not body.strip():
+        raise RuntimeError(f"Empty response for hunts")
+    data = json.loads(body) if isinstance(body, str) else body
+    # Find our hunt in the list
+    for hunt in data.get("data", []):
+        if hunt.get("id") == hunt_id:
+            return {"hunt": hunt}
+    # Hunt not found - might have been auto-deleted after completion
+    # Return a finished status with 0 matches
+    return {"hunt": {"id": hunt_id, "status": "finished", "matchedSessions": 0}}
+
+
+def _wait_for_hunt(cfg, hunt_id, poll_interval=2, max_wait=300):
+    """Poll until a hunt finishes or times out. Returns the hunt object."""
+    start = time.time()
+    while time.time() - start < max_wait:
+        status = _get_hunt_status(cfg, hunt_id)
+        hunt = status.get("hunt", status)
+        if hunt.get("status") == "finished":
+            return hunt
+        if hunt.get("status") == "error":
+            raise RuntimeError(f"Hunt failed: {hunt.get('error', 'unknown error')}")
+        time.sleep(poll_interval)
+    raise RuntimeError(f"Hunt {hunt_id} timed out after {max_wait}s")
+
+
+def _get_hunt_sessions(cfg, hunt_id, limit=1000):
+    """Get sessions that matched a hunt by querying with huntId or huntName."""
+    params = {
+        "length": str(limit),
+        "date": "-1",
+        "fields": "port.dst,port.src,ip.src,ip.dst,firstPacket,lastPacket,node,source,destination",
+    }
+    time_p = _time_params(cfg)
+    params.update(time_p)
+
+    # Try with huntId parameter
+    params["huntId"] = hunt_id
+    body = _get(cfg, "/api/sessions", params)
+    if body and body.strip():
+        data = json.loads(body) if isinstance(body, str) else body
+        sessions = data.get("data", [])
+        if sessions:
+            return sessions
+
+    # If no sessions found with huntId, the hunt might have tagged the sessions
+    # Try querying by hunt tag
+    del params["huntId"]
+    params["expression"] = f'tags == "hunt:{hunt_id}"'
+    body = _get(cfg, "/api/sessions", params)
+    if not body or not body.strip():
+        return []
+    data = json.loads(body) if isinstance(body, str) else body
+    return data.get("data", [])
+
+
+def _delete_hunt(cfg, hunt_id):
+    """Clean up a hunt after we're done."""
+    try:
+        _post_with_session(cfg, f"/api/hunt/{hunt_id}/delete", {})
+    except Exception:
+        pass
+
+
+def do_port_scan_byte_pattern(cfg, progress=None):
+    """
+    Mode 4: Search for byte patterns in raw payloads using Hunt API,
+    then check which ports those sessions used vs. expected ports.
+
+    cfg keys:
+      patterns: list of {pattern, type ('hex'|'ascii'), expected_ports: [int, ...]}
+      port_field: 'port.dst' or 'port.src'
+      cleanup_hunts: bool (default True) - delete hunts after completion
+      hunt_timeout: int (default 300) - max seconds to wait per hunt
+    """
+    patterns = cfg.get("patterns") or []
+    if not patterns:
+        raise ValueError("No patterns provided")
+
+    port_field = cfg.get("port_field") or "port.dst"
+    cleanup = cfg.get("cleanup_hunts", True)
+    hunt_timeout = int(cfg.get("hunt_timeout", 300))
+
+    _ = _time_params(cfg)  # validate
+
+    results = []
+    total = len(patterns)
+
+    for i, pat_cfg in enumerate(patterns):
+        pattern = pat_cfg.get("pattern", "").strip()
+        pat_type = pat_cfg.get("type", "hex").lower()
+        expected_ports = set(int(p) for p in pat_cfg.get("expected_ports", []))
+
+        if not pattern:
+            results.append({"pattern": pattern, "error": "Empty pattern"})
+            if progress:
+                progress(i + 1, total, pattern)
+            continue
+
+        search_type = "hex" if pat_type == "hex" else "ascii"
+
+        try:
+            hunt_name = f"luxray_byte_scan_{pattern[:20]}_{int(time.time())}"
+            hunt_id = _create_hunt(cfg, hunt_name, pattern, search_type)
+
+            hunt = _wait_for_hunt(cfg, hunt_id, max_wait=hunt_timeout)
+            matched = hunt.get("matchedSessions", 0)
+
+            if matched == 0:
+                results.append({
+                    "pattern": pattern,
+                    "type": pat_type,
+                    "expected_ports": sorted(expected_ports),
+                    "matched_sessions": 0,
+                    "ports": [],
+                    "unexpected_ports": [],
+                    "flagged": False,
+                })
+            else:
+                sessions = _get_hunt_sessions(cfg, hunt_id)
+                port_counts = {}
+                for sess in sessions:
+                    # Handle nested structure: source.port, destination.port
+                    ports = []
+                    if port_field == "port.dst":
+                        p = sess.get("destination", {}).get("port")
+                        if p is not None:
+                            ports.append(p)
+                    elif port_field == "port.src":
+                        p = sess.get("source", {}).get("port")
+                        if p is not None:
+                            ports.append(p)
+                    else:
+                        # Try direct access
+                        p = sess.get(port_field)
+                        if p is not None:
+                            ports = [p] if not isinstance(p, list) else p
+
+                    for p in ports:
+                        if p is not None:
+                            port_counts[int(p)] = port_counts.get(int(p), 0) + 1
+
+                ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
+                unexpected = [(p, c) for p, c in ports_sorted if p not in expected_ports]
+                flagged = len(unexpected) > 0 if expected_ports else False
+
+                results.append({
+                    "pattern": pattern,
+                    "type": pat_type,
+                    "expected_ports": sorted(expected_ports),
+                    "matched_sessions": matched,
+                    "ports": [{"port": p, "count": c} for p, c in ports_sorted],
+                    "unexpected_ports": [{"port": p, "count": c} for p, c in unexpected],
+                    "flagged": flagged,
+                })
+
+            if cleanup:
+                _delete_hunt(cfg, hunt_id)
+
+        except Exception as e:
+            results.append({
+                "pattern": pattern,
+                "type": pat_type,
+                "expected_ports": sorted(expected_ports) if expected_ports else [],
+                "error": str(e),
+            })
+
+        if progress:
+            progress(i + 1, total, pattern)
+
+    flagged_count = sum(1 for r in results if r.get("flagged"))
+
+    return {
+        "mode": "byte_pattern",
+        "port_field": port_field,
+        "patterns": results,
+        "total_patterns": len(patterns),
+        "flagged_count": flagged_count,
     }
 
 
@@ -1382,6 +1783,8 @@ code{background:var(--code-bg);padding:1px 5px;border-radius:3px;font-size:.85em
 .port-chip{display:inline-flex;align-items:center;gap:4px;margin:2px 3px 2px 0;padding:2px 6px 2px 8px;border-radius:10px;background:var(--surface-2);font-size:.72rem;border:1px solid var(--border);font-family:'SFMono-Regular',Consolas,monospace}
 .port-chip.dom{background:var(--tag-bg);color:var(--tag-fg);border-color:transparent}
 .port-chip.out{background:var(--anom-bg);color:var(--anom-fg);border-color:transparent}
+.port-chip.flagged{background:#fecaca;color:#991b1b;border-color:#f87171}
+.byte-pattern-row{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px}
 .port-chip .port-val{font-weight:700}
 .port-chip .port-count{color:var(--text-3);font-size:.68rem}
 .port-chip .chip-act{background:none;border:none;cursor:pointer;color:inherit;opacity:.6;padding:0 2px;font-size:.7rem;line-height:1}
@@ -1549,6 +1952,7 @@ tr.clean td{opacity:.75}
         <option value="sig_to_port">1 &mdash; Signature on unexpected port</option>
         <option value="port_to_sig">2 &mdash; Unexpected protocol on known port</option>
         <option value="host_diversity">3 &mdash; Host using many ports (scan/beacon)</option>
+        <option value="byte_pattern">4 &mdash; Byte pattern on unexpected port</option>
       </select>
 
       <div id="psMode_sig_to_port">
@@ -1643,6 +2047,33 @@ tr.clean td{opacity:.75}
         <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
           Flags hosts with &ge; min-distinct-ports AND
           (distinct ports / sessions) &ge; ratio threshold.
+        </div>
+      </div>
+
+      <div id="psMode_byte_pattern" style="display:none">
+        <label>Port field</label>
+        <input type="text" id="psPortField4" value="port.dst">
+        <label>Byte patterns</label>
+        <div id="bytePatternList"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn-outline" style="flex:1" onclick="addBytePattern()">+ Add pattern</button>
+        </div>
+        <div class="row2" style="margin-top:8px">
+          <div>
+            <label class="no-mt">Hunt timeout (sec)</label>
+            <input type="number" id="psHuntTimeout" value="300" min="30">
+          </div>
+          <div>
+            <label class="no-mt">Cleanup hunts</label>
+            <select id="psCleanupHunts">
+              <option value="true" selected>Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
+          Searches raw packet payloads using Arkime Hunt API.<br>
+          Flags when a byte pattern appears on an unexpected port.
         </div>
       </div>
 
@@ -2824,11 +3255,64 @@ function togglePortScan() {
   if (show) refreshBaselines();
 }
 
+// ── Byte pattern helpers (mode 4) ─────────────────────────────────────────────
+let bytePatternId = 0;
+
+function addBytePattern(pattern = "", type = "hex", ports = "") {
+  const id = bytePatternId++;
+  const container = document.getElementById("bytePatternList");
+  const div = document.createElement("div");
+  div.className = "byte-pattern-row";
+  div.id = `bp-${id}`;
+  div.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select id="bpType-${id}" style="width:80px">
+        <option value="hex" ${type === "hex" ? "selected" : ""}>Hex</option>
+        <option value="ascii" ${type === "ascii" ? "selected" : ""}>ASCII</option>
+      </select>
+      <input type="text" id="bpPattern-${id}" placeholder="Pattern (e.g. 5a5a5a5a or malware.com)" value="${esc(pattern)}" style="flex:1">
+      <button class="btn-icon" onclick="removeBytePattern(${id})" title="Remove">&times;</button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <span style="font-size:.75rem;color:var(--text-3);white-space:nowrap">Expected ports:</span>
+      <input type="text" id="bpPorts-${id}" placeholder="e.g. 443, 8443" value="${esc(ports)}" style="flex:1">
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeBytePattern(id) {
+  const el = document.getElementById(`bp-${id}`);
+  if (el) el.remove();
+}
+
+function getBytePatterns() {
+  const patterns = [];
+  document.querySelectorAll("[id^='bp-']").forEach(div => {
+    const id = div.id.replace("bp-", "");
+    const typeEl = document.getElementById(`bpType-${id}`);
+    const patternEl = document.getElementById(`bpPattern-${id}`);
+    const portsEl = document.getElementById(`bpPorts-${id}`);
+    if (!typeEl || !patternEl || !portsEl) return;
+    const pattern = patternEl.value.trim();
+    if (!pattern) return;
+    const portsStr = portsEl.value.trim();
+    const ports = portsStr ? portsStr.split(/[,\\s]+/).map(p => parseInt(p.trim())).filter(p => !isNaN(p)) : [];
+    patterns.push({
+      pattern: pattern,
+      type: typeEl.value,
+      expected_ports: ports
+    });
+  });
+  return patterns;
+}
+
 function renderPortScanMode() {
   const mode = document.getElementById("psMode").value;
   document.getElementById("psMode_sig_to_port").style.display   = mode === "sig_to_port"   ? "" : "none";
   document.getElementById("psMode_port_to_sig").style.display   = mode === "port_to_sig"   ? "" : "none";
   document.getElementById("psMode_host_diversity").style.display= mode === "host_diversity"? "" : "none";
+  document.getElementById("psMode_byte_pattern").style.display  = mode === "byte_pattern"  ? "" : "none";
   document.getElementById("psBaselineBlock").style.display      = mode === "sig_to_port"   ? "" : "none";
 }
 
@@ -2908,6 +3392,11 @@ function getPortScanCfg() {
     out.min_distinct_ports    = parseInt(document.getElementById("psMinDistinctPorts").value) || 10;
     out.port_ratio_threshold  = parseFloat(document.getElementById("psPortRatio").value) || 0.4;
     out.max_hosts             = parseInt(document.getElementById("psMaxHosts").value) || 100;
+  } else if (mode === "byte_pattern") {
+    out.port_field     = document.getElementById("psPortField4").value.trim() || "port.dst";
+    out.patterns       = getBytePatterns();
+    out.hunt_timeout   = parseInt(document.getElementById("psHuntTimeout").value) || 300;
+    out.cleanup_hunts  = document.getElementById("psCleanupHunts").value === "true";
   }
   return out;
 }
@@ -2917,6 +3406,7 @@ async function runPortScan() {
   if (!cfg.url) { toast("Please enter an Arkime URL.", "err"); return; }
   if (cfg.mode === "sig_to_port" && !cfg.signature_field) { toast("Signature field is required", "err"); return; }
   if (cfg.mode === "port_to_sig" && !cfg.ports_to_check.length) { toast("Add at least one port to check", "err"); return; }
+  if (cfg.mode === "byte_pattern" && !cfg.patterns.length) { toast("Add at least one byte pattern", "err"); return; }
 
   const panel = document.getElementById("results");
   panel.innerHTML = `
@@ -3045,6 +3535,7 @@ function renderPortScanResults(panel, data, cfg) {
   if (mode === "sig_to_port")          body = renderSigToPort(data, cfg);
   else if (mode === "port_to_sig")     body = renderPortToSig(data, cfg);
   else if (mode === "host_diversity")  body = renderHostDiversity(data, cfg);
+  else if (mode === "byte_pattern")    body = renderBytePattern(data, cfg);
   else body = `<div class="err-card">Unknown mode: ${esc(mode)}</div>`;
 
   panel.innerHTML = header + body;
@@ -3297,6 +3788,77 @@ function renderHostDiversity(data, cfg) {
       </table></div>
     </details>`;
   }
+  return html;
+}
+
+function renderBytePattern(data, cfg) {
+  const patterns = data.patterns || [];
+  const flagged = patterns.filter(p => p.flagged);
+  const clean = patterns.filter(p => !p.flagged && !p.error);
+  const errors = patterns.filter(p => p.error);
+
+  let html = `<div class="card">
+    <div class="card-top">
+      <div>
+        <div class="card-title">Byte pattern scan (mode 4)</div>
+        <div class="card-sub">port field: <code>${esc(data.port_field)}</code> · Uses Arkime Hunt API</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${fmt(patterns.length)}</div><div class="stat-lbl">Patterns</div></div>
+      <div class="stat"><div class="stat-val" style="color:#dc2626">${fmt(flagged.length)}</div><div class="stat-lbl">Flagged</div></div>
+      <div class="stat"><div class="stat-val">${fmt(clean.length)}</div><div class="stat-lbl">Clean</div></div>
+      ${errors.length ? `<div class="stat"><div class="stat-val" style="color:#f59e0b">${fmt(errors.length)}</div><div class="stat-lbl">Errors</div></div>` : ""}
+    </div>
+  </div>`;
+
+  const buildRow = (p) => {
+    const portsHtml = (p.ports || []).slice(0, 10).map(pt => {
+      const isUnexpected = p.expected_ports && p.expected_ports.length && !p.expected_ports.includes(pt.port);
+      return `<span class="port-chip${isUnexpected ? " flagged" : ""}"><span class="port-val">${esc(pt.port)}</span> <span class="port-count">${pt.count}</span></span>`;
+    }).join("");
+    const expectedStr = (p.expected_ports || []).join(", ") || "(any)";
+    const unexpectedPorts = (p.unexpected_ports || []).map(u => u.port).join(", ");
+    return `<tr class="${p.flagged ? "" : "clean"}">
+      <td><code style="font-size:.8rem">${esc(p.pattern)}</code></td>
+      <td>${esc(p.type)}</td>
+      <td class="num r">${fmt(p.matched_sessions || 0)}</td>
+      <td style="font-size:.75rem">${esc(expectedStr)}</td>
+      <td style="max-width:300px">${portsHtml}</td>
+      <td style="color:#dc2626;font-size:.75rem">${unexpectedPorts ? esc(unexpectedPorts) : "-"}</td>
+    </tr>`;
+  };
+
+  if (flagged.length) {
+    html += `<details class="card" open>
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Flagged patterns (${flagged.length})</summary>
+      <div style="margin-top:12px"><table>
+        <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
+        <tbody>${flagged.map(buildRow).join("")}</tbody>
+      </table></div>
+    </details>`;
+  }
+
+  if (clean.length) {
+    html += `<details class="card">
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Clean patterns (${clean.length})</summary>
+      <div style="margin-top:12px"><table>
+        <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
+        <tbody>${clean.map(buildRow).join("")}</tbody>
+      </table></div>
+    </details>`;
+  }
+
+  if (errors.length) {
+    html += `<details class="card">
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0;color:#f59e0b">Errors (${errors.length})</summary>
+      <div style="margin-top:12px"><table>
+        <thead><tr><th>Pattern</th><th>Type</th><th>Error</th></tr></thead>
+        <tbody>${errors.map(p => `<tr><td><code>${esc(p.pattern)}</code></td><td>${esc(p.type)}</td><td style="color:#dc2626">${esc(p.error)}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>`;
+  }
+
   return html;
 }
 
@@ -3628,6 +4190,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     out = do_port_scan_port_to_sig(cfg)
                 elif mode == "host_diversity":
                     out = do_port_scan_host_diversity(cfg)
+                elif mode == "byte_pattern":
+                    out = do_port_scan_byte_pattern(cfg)
                 else:
                     self._json(200, {"error": f"Unknown scan mode: {mode}"})
                     return
@@ -3790,6 +4354,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         res = do_port_scan_port_to_sig(cfg, progress=progress)
                     elif mode == "host_diversity":
                         res = do_port_scan_host_diversity(cfg, progress=progress)
+                    elif mode == "byte_pattern":
+                        res = do_port_scan_byte_pattern(cfg, progress=progress)
                     else:
                         q.put(("error", f"Unknown mode: {mode}"))
                         return
