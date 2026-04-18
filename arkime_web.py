@@ -89,7 +89,7 @@ def _ssl_ctx(cfg):
 def _get(cfg, path, params=None):
     qs = ("?" + urllib.parse.urlencode(params)) if params else ""
     url = cfg["url"].rstrip("/") + path + qs
-    timeout = int(cfg.get("timeout_secs", 30))
+    timeout = int(cfg.get("timeout_secs", 1800))
     ctx = _ssl_ctx(cfg)
 
     if cfg.get("auth_type") == "digest":
@@ -280,6 +280,26 @@ def do_test(cfg):
         return {"ok": False, "message": f"Could not connect: {e.reason}"}
     except Exception as e:
         return {"ok": False, "message": str(e)}
+
+
+def do_arkime_fields(cfg):
+    try:
+        raw  = _get(cfg, "/api/fields")
+        data = json.loads(raw)
+        if isinstance(data, list):
+            names = sorted({
+                item.get("exp") or item.get("dbField") or item.get("name", "")
+                for item in data if isinstance(item, dict)
+            } - {""})
+        elif isinstance(data, dict):
+            names = sorted(k for k in data.keys() if k)
+        else:
+            names = []
+        return {"ok": True, "fields": names}
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "fields": [], "message": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"ok": False, "fields": [], "message": str(e)}
 
 
 # ==============================================================================
@@ -1494,7 +1514,7 @@ tr.clean td{opacity:.75}
     <div class="row2" style="margin-top:8px">
       <div>
         <label class="no-mt">Timeout (s)</label>
-        <input type="number" id="timeoutSecs" value="30" min="5" max="600">
+        <input type="number" id="timeoutSecs" value="1800" min="5" max="7200">
       </div>
       <div>
         <label class="no-mt">Parallel workers</label>
@@ -1677,8 +1697,9 @@ tr.clean td{opacity:.75}
 window.__CSRF = "__CSRF_TOKEN__";
 
 // ── State ────────────────────────────────────────────────────────────────────
-let tags        = [];
-let fields      = ["port.dst", "port.src", "http.useragent", "http.uri"];
+let tags          = [];
+let fields        = ["port.dst", "port.src", "http.useragent", "http.uri"];
+let arkimeFields  = [];
 let lastResults = {};
 let rowData     = [];
 let lastCfg     = null;
@@ -1826,16 +1847,26 @@ function renderTags() {
 }
 
 // ── Fields ───────────────────────────────────────────────────────────────────
-function addField(val) { fields.push(val || ""); renderFields(); }
+function addField(val) { fields.push(val || (arkimeFields[0] || "")); renderFields(); }
 function removeField(i) { fields.splice(i, 1); renderFields(); }
 function renderFields() {
-  document.getElementById("fieldList").innerHTML = fields.map((f, i) =>
-    `<div class="field-row">
-       <input type="text" value="${esc(f)}" placeholder="e.g. http.useragent"
-              oninput="fields[${i}]=this.value">
-       <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
-     </div>`
-  ).join("");
+  document.getElementById("fieldList").innerHTML = fields.map((f, i) => {
+    if (arkimeFields.length) {
+      // Ensure the current value appears even if not in the fetched list
+      const opts = (arkimeFields.includes(f) ? arkimeFields : [f, ...arkimeFields])
+        .map(o => `<option value="${esc(o)}"${o === f ? " selected" : ""}>${esc(o)}</option>`)
+        .join("");
+      return `<div class="field-row">
+        <select onchange="fields[${i}]=this.value">${opts}</select>
+        <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
+      </div>`;
+    }
+    return `<div class="field-row">
+      <input type="text" value="${esc(f)}" placeholder="e.g. http.useragent"
+             oninput="fields[${i}]=this.value">
+      <button class="rm-btn" onclick="removeField(${i})" title="Remove">&#x2715;</button>
+    </div>`;
+  }).join("");
 }
 
 // ── Allowlist ────────────────────────────────────────────────────────────────
@@ -1882,7 +1913,7 @@ function getConfig() {
     top_n:            parseInt(document.getElementById("topN").value)      || 20,
     rare_threshold:   parseInt(document.getElementById("rareThresh").value) || 3,
     max_rare_display: parseIntOr(document.getElementById("maxRare").value, 50),
-    timeout_secs:     parseInt(document.getElementById("timeoutSecs").value) || 30,
+    timeout_secs:     parseInt(document.getElementById("timeoutSecs").value) || 1800,
     max_workers:      parseInt(document.getElementById("maxWorkers").value) || 6,
     anom_hints:       document.getElementById("anomHints").checked,
     allowlist:        parseAllowlist(),
@@ -1979,12 +2010,24 @@ async function testConn() {
   setConn("busy", "Testing…");
   document.getElementById("testBtn").disabled = true;
   try {
-    const res  = await apiFetch("/api/test", getConfig());
+    const cfg = getConfig();
+    const res = await apiFetch("/api/test", cfg);
     setConn(res.ok ? "ok" : "err", res.message);
+    if (res.ok) loadArkimeFields(cfg);
   } catch(e) {
     setConn("err", "Request failed: " + e.message);
   }
   document.getElementById("testBtn").disabled = false;
+}
+
+async function loadArkimeFields(cfg) {
+  try {
+    const res = await apiFetch("/api/arkime-fields", cfg);
+    if (res.ok && res.fields.length) {
+      arkimeFields = res.fields;
+      renderFields();
+    }
+  } catch(_) {}
 }
 function setConn(state, msg) {
   document.getElementById("connDot").className = "dot " + state;
@@ -3484,6 +3527,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self._json(200, {"results": results})
             except Exception as e:
                 self._json(200, {"error": str(e)})
+
+        elif self.path == "/api/arkime-fields":
+            try:    self._json(200, do_arkime_fields(cfg))
+            except Exception as e: self._json(200, {"error": str(e)})
 
         elif self.path == "/api/settings":
             try:    self._json(200, do_save_settings(cfg))
