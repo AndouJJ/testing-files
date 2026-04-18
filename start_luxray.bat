@@ -18,7 +18,7 @@ echo.
 
 REM Start Arkime services in WSL2
 echo [1/2] Starting Arkime services in WSL2...
-wsl -d Ubuntu -u root -- bash -c "cd /opt/arkime && nohup /opt/opensearch/bin/opensearch > /var/log/opensearch.log 2>&1 & sleep 5 && nohup /opt/arkime/bin/run_viewer.sh > /var/log/arkime-viewer.log 2>&1 & nohup /opt/arkime/bin/run_capture.sh > /var/log/arkime-capture.log 2>&1 &"
+wsl -d Ubuntu-24.04 -u root -- bash -c "cd /opt/arkime && nohup /opt/opensearch/bin/opensearch > /var/log/opensearch.log 2>&1 & sleep 5 && nohup /opt/arkime/bin/run_viewer.sh > /var/log/arkime-viewer.log 2>&1 & nohup /opt/arkime/bin/run_capture.sh > /var/log/arkime-capture.log 2>&1 &"
 echo Arkime services starting in background...
 echo.
 

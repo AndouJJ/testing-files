@@ -16,7 +16,7 @@ echo.
 
 REM Stop Arkime services in WSL2
 echo [2/2] Stopping Arkime services in WSL2...
-wsl -d Ubuntu -u root -- bash -c "pkill -f opensearch; pkill -f viewer; pkill -f capture" 2>nul
+wsl -d Ubuntu-24.04 -u root -- bash -c "pkill -f opensearch; pkill -f viewer; pkill -f capture" 2>nul
 echo Arkime services stopped.
 echo.
 
