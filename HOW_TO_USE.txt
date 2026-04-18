@@ -1,0 +1,379 @@
+================================================================
+  ARKIME ANALYZER v3 - HOW TO USE
+================================================================
+
+WHAT IS THIS?
+-------------
+This tool helps you analyse network traffic from Arkime without
+having to click through thousands of results manually.
+
+It has two main features:
+
+  1. FIELD ANALYSIS (the "Run Analysis" button)
+     Shows you the most common and rare values for any fields
+     you choose, with anomaly hints and one-click drilldowns.
+
+  2. PORT ANOMALY SCAN (the "Run Port Scan" button)
+     Finds traffic where the application signature doesn't
+     match the port it's running on, where well-known ports
+     carry unexpected protocols, or where a single host hits
+     an unusual number of destination ports. Supports saved
+     baselines so you can compare today's traffic to a known-
+     clean week.
+
+
+----------------------------------------------------------------
+  STEP 1 - START THE TOOL
+----------------------------------------------------------------
+
+1. Make sure Python is installed (python --version should work).
+2. Copy arkime_web.py to any folder.
+3. Open Command Prompt in that folder.
+4. Run:   python arkime_web.py
+5. Your browser opens at http://localhost:8080
+6. To stop: Ctrl + C in the Command Prompt.
+
+
+----------------------------------------------------------------
+  STEP 2 - CONNECT TO ARKIME
+----------------------------------------------------------------
+
+In the Connection section:
+
+  Arkime URL       The address of your Arkime server.
+  Authentication   Usually "Basic" + username/password.
+  Test Connection  Click this first. Expect "Connected
+                   successfully" in green.
+
+Your password is never saved to disk. Everything else
+(filters, fields, settings, presets, baselines) persists
+across restarts.
+
+
+----------------------------------------------------------------
+  STEP 3 - TIME RANGE
+----------------------------------------------------------------
+
+Set Start and End dates. Use the quick buttons below the
+date fields for common windows:
+  1h   4h   12h   24h   3d   7d   (measured from now)
+
+
+----------------------------------------------------------------
+  STEP 4 - PRESETS
+----------------------------------------------------------------
+
+Presets save your entire configuration under a name.
+
+Typical presets an analyst might create:
+  - "Morning triage"        (core fields, 24h range)
+  - "DNS tunnelling hunt"   (dns.host + dns.query.type)
+  - "Beacon hunt"           (ip.dst + tls.ja3, narrow range)
+  - "HTTP exposure review"  (http.uri + http.useragent)
+
+Buttons:
+  Down arrow   Load selected preset
+  Disk         Save current config as preset
+  Trash        Delete selected preset
+
+
+----------------------------------------------------------------
+  STEP 5 - FILTER BY TAG (OPTIONAL)
+----------------------------------------------------------------
+
+Add tag names in the Tag Filter box and choose match logic:
+  Any tag   at least one of the listed tags matches
+  All tags  every listed tag must match
+
+
+----------------------------------------------------------------
+  STEP 6 - FIELDS TO ANALYSE
+----------------------------------------------------------------
+
+Defaults: port.dst, port.src, http.useragent, http.uri.
+Remove with X, add with "+ Add field". Common useful fields:
+
+  ip.src, ip.dst, dns.host, tls.ja3, protocols
+
+
+----------------------------------------------------------------
+  STEP 7 - ALLOWLIST
+----------------------------------------------------------------
+
+One entry per line:    field: value
+Wildcard prefix:       http.uri: /static/*
+
+One-click allowlist:
+  The tick icon on each result row adds that value directly.
+  Or tick checkboxes and use "Allowlist selected".
+
+
+----------------------------------------------------------------
+  STEP 8 - ANALYSIS SETTINGS
+----------------------------------------------------------------
+
+  Top N              Most-common values per field (default 20)
+  Rare threshold     What counts as "rare" (default <= 3)
+  Max rare rows      Cap on rare rows shown (0 = unlimited)
+  Timeout            Seconds per Arkime query
+  Parallel workers   How many fields to query at once
+  Anomaly hints      Src-IP concentration per rare value
+
+
+----------------------------------------------------------------
+  STEP 9 - RUN THE ANALYSIS
+----------------------------------------------------------------
+
+Click "Run Analysis". Progress bar shows field completion.
+Fields query in PARALLEL.
+
+Per field you get:
+  TOP 20 BY FREQUENCY - most common values
+  RARE VALUES         - seen <= rare-threshold times
+
+Sort by clicking column headers. Filter with the per-table
+search box.
+
+
+----------------------------------------------------------------
+  STEP 10 - BULK INVESTIGATION
+----------------------------------------------------------------
+
+Tick checkboxes, then use the blue action bar:
+
+  CORRELATE SELECTED     cross-field distribution
+  SESSIONS FOR SELECTED  sessions matching any selected value
+  ALLOWLIST SELECTED     bulk add to allowlist
+
+All selected rows must share the same FIELD.
+
+
+----------------------------------------------------------------
+  STEP 11 - ROW DRILLDOWN BUTTONS
+----------------------------------------------------------------
+
+  <->   CORRELATE
+        Distribution of another field. Results have their
+        own pivot/sessions buttons for chained drilldown.
+        Breadcrumb trail at the top of the modal.
+
+  ==    SESSIONS
+        Actual sessions. Columns: packets, duration, tags,
+        node. "Open in Arkime" link per row.
+
+  TICK  ALLOWLIST
+        Adds this value to the allowlist.
+
+
+================================================================
+  NEW IN v3: PORT ANOMALY SCAN
+================================================================
+
+Open the "Port Anomaly Scan" section in the sidebar (click
+"Show"). There are three modes in the Mode dropdown.
+
+
+----------------------------------------------------------------
+  MODE 1 - SIGNATURE ON UNEXPECTED PORT
+----------------------------------------------------------------
+
+Answers: "Does this signature normally live on a specific
+port, and is it appearing anywhere it shouldn't?"
+
+Good for:
+  - JA3 fingerprints appearing on rogue ports
+  - User agents found on unexpected destinations
+  - Port-hopping malware
+
+Configuration:
+  Signature field   What identifies the "application"
+                    (tls.ja3, http.useragent, protocols...)
+  Port field        Usually port.dst
+  Min sessions      Skip signatures with fewer hits
+  Max signatures    Hard cap on signatures scanned
+  Dominance         Signature is "bound to a port" if at
+                    least this share of its sessions use
+                    one port (default 0.9 = 90%)
+  Outlier max       A port is an outlier if it has at most
+                    this many sessions (default 3)
+
+A signature is FLAGGED when:
+  - Dominance share >= threshold, AND
+  - At least one outlier port exists, AND
+  - Total sessions >= min_sessions
+
+Results show dominant port + share, distinct port count,
+Shannon entropy (low = concentrated on one port), and
+outlier ports with session counts.
+
+Each outlier port chip has pivot and sessions buttons to
+drill into that signature-on-that-port combination.
+
+
+----------------------------------------------------------------
+  MODE 2 - UNEXPECTED PROTOCOL ON KNOWN PORT
+----------------------------------------------------------------
+
+Answers: "Port 53 should be DNS. What else is on it?"
+
+Good for:
+  - Non-DNS on port 53 (tunnelling)
+  - Plain HTTP on port 443 (misconfig or exfil)
+  - SSH, RDP, SMB on non-standard ports
+
+Configuration:
+  Signature field       Usually "protocols"
+  Port field            Usually port.dst
+  Ports to check        One per line
+  Expected signatures   Format:   port: sig1,sig2
+
+Click "Load default port list" to pre-fill both fields with
+common well-known ports.
+
+A port is FLAGGED when at least one session on that port
+has a signature NOT in the expected list.
+
+
+----------------------------------------------------------------
+  MODE 3 - HOST USING MANY PORTS (scan / beacon shape)
+----------------------------------------------------------------
+
+Answers: "Is any source IP fanning out across many ports?"
+
+Good for:
+  - Internal port scanners
+  - Compromised hosts doing lateral movement
+  - Wide-spray beacons
+
+Configuration:
+  Host field                 Usually ip.src
+  Port field                 Usually port.dst
+  Pin to signature (opt.)    Restrict to one JA3 etc.
+  Min sessions               Skip low-activity hosts
+  Min distinct ports         Threshold for "interesting"
+  Ratio >=                   (distinct ports / total
+                             sessions). High ratio = not
+                             repeatedly hitting same port
+  Max hosts                  Hard cap on hosts scanned
+
+A host is FLAGGED when distinct ports >= threshold AND
+ratio >= threshold.
+
+
+----------------------------------------------------------------
+  BASELINES (MODE 1 ONLY)
+----------------------------------------------------------------
+
+A baseline is a saved snapshot of "normal" for each
+signature. Future scans can be compared against it.
+
+HOW TO BUILD A BASELINE:
+  1. Choose a window you trust as clean
+  2. Run a mode-1 scan over that window
+  3. Click "Save last scan as baseline"
+  4. Give it a name and description
+
+HOW TO USE A BASELINE:
+  1. Pick a baseline from the dropdown before running
+  2. Run a mode-1 scan
+  3. A "Baseline comparison" card appears below the results
+
+The comparison flags three kinds of difference:
+
+  NEW SIGNATURE              Signature wasn't in the baseline
+                             at all. New software, malware,
+                             or renamed.
+  KNOWN SIGNATURE NEW PORTS  Signature gained a port it
+                             didn't have before. Strongest
+                             signal.
+  DOMINANCE SHIFT            Same ports, but the "home" port
+                             changed.
+
+Severity: HIGH (flagged + new ports), MEDIUM (new port or
+new signature), LOW (dominance shift only).
+
+CAVEAT: A baseline is only as good as the window you built
+it from. If your "clean" window contained malicious
+activity, that's now part of "normal". The tool shows the
+build window and description prominently.
+
+BASELINE FILE LOCATION
+  Stored in arkime_settings.json under "baselines",
+  alongside presets and current settings. Safe to share -
+  never contains passwords.
+
+
+----------------------------------------------------------------
+  PERFORMANCE NOTES FOR PORT SCANS
+----------------------------------------------------------------
+
+Mode 1 fires one query per signature (after the initial
+signature list). For tls.ja3 usually fast. For
+http.useragent in a busy network you can hit thousands -
+use Min sessions and Max signatures aggressively.
+
+Mode 2 fires one query per listed port. Rarely a problem.
+
+Mode 3 fires one query per eligible source IP. Set
+Max hosts and Min sessions carefully on large networks.
+
+All port scans are cached for 5 minutes on the same config,
+so iterating on thresholds is cheap.
+
+
+----------------------------------------------------------------
+  DOWNLOADS
+----------------------------------------------------------------
+
+Analysis results:
+  Top CSV / Rare CSV   per-field tables
+  Report               JSON with full config + all results
+                       + anomaly hints (credentials stripped)
+
+Port scan results:
+  Report               JSON of the full scan result
+
+
+----------------------------------------------------------------
+  CACHING
+----------------------------------------------------------------
+
+Arkime responses are cached in memory for 5 minutes.
+Restart clears the cache. Cache keys ignore credentials.
+
+
+----------------------------------------------------------------
+  TROUBLESHOOTING
+----------------------------------------------------------------
+
+"Could not connect"
+  Check the URL.
+
+"Authentication failed (HTTP 401)"
+  Re-enter username/password.
+
+"No data returned for this field"
+  Field name wrong or no sessions in the window.
+
+"Request timed out"
+  Increase Timeout or narrow the window. For port scans,
+  raise Min sessions or lower Max signatures.
+
+"CSRF token missing or invalid"
+  Reload the page (old tab).
+
+"Signature field mismatch" (baseline compare)
+  Baseline was built with a different signature field than
+  the current scan. Rebuild or switch.
+
+"Only the top N signatures were scanned"
+  Raise Max signatures or Min sessions to filter noise.
+
+
+----------------------------------------------------------------
+  DARK MODE
+----------------------------------------------------------------
+
+Click the moon icon (top right). Saved automatically.
+
+================================================================
