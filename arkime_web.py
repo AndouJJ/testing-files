@@ -1225,7 +1225,7 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 .srch-opt:hover{background:var(--surface-2);color:#3b82f6}
 .srch-none{padding:6px 9px;font-size:.78rem;color:var(--text-4);font-style:italic}
 .srch-hl{font-weight:700;color:#3b82f6}
-#tagList{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:20px}
+#tagList{display:flex;flex-direction:column;gap:5px;margin-top:7px;min-height:20px}
 .pill{display:inline-flex;align-items:center;gap:3px;background:var(--tag-bg);color:var(--tag-fg);padding:2px 8px 2px 9px;border-radius:10px;font-size:.72rem;font-weight:600}
 .pill button{background:none;border:none;cursor:pointer;color:var(--tag-btn);font-size:.85rem;padding:0 0 0 2px;line-height:1;transition:color .15s!important}
 .pill button:hover{color:var(--tag-fg)}
