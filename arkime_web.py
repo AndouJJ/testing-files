@@ -3379,27 +3379,42 @@ async function openSessionsRaw(field, values, pin) {
   }
 }
 
-function renderSessionsInto(bodyId, data) {
-  const sessions = data.sessions || [];
-  const total    = data.total    || 0;
+// IP protocol number to name mapping
+const IP_PROTO_MAP = {1:"ICMP",6:"TCP",17:"UDP",47:"GRE",50:"ESP",51:"AH",58:"ICMPv6",132:"SCTP"};
 
-  if (!sessions.length) {
+let sessionData = [];  // for sorting
+let sessionSortCol = null;
+let sessionSortDir = 1;
+
+function renderSessionsInto(bodyId, data) {
+  sessionData = data.sessions || [];
+  const total = data.total || 0;
+
+  if (!sessionData.length) {
     document.getElementById(bodyId).innerHTML =
       '<div class="empty">No sessions found for this value in the selected time range.</div>';
     return;
   }
 
-  const baseUrl = document.getElementById("url").value.trim();
+  sessionSortCol = null;
+  sessionSortDir = 1;
+  renderSessionTable(bodyId, data.expression, total);
+}
 
-  const rows = sessions.map(s => {
+function renderSessionTable(bodyId, expression, total) {
+  const baseUrl = document.getElementById("url").value.trim();
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+
+  const rows = sessionData.map(s => {
     // Handle both flat and nested Arkime response formats
     const srcIp   = s.source?.ip || s["ip.src"] || s.srcIp || "—";
     const dstIp   = s.destination?.ip || s["ip.dst"] || s.dstIp || "—";
     const srcPort = s.source?.port || s["port.src"] || s.srcPort || "";
     const dstPort = s.destination?.port || s["port.dst"] || s.dstPort || "";
-    const proto   = Array.isArray(s.protocols) ? s.protocols.join(", ")
-                  : (s.protocols || s.ipProtocol || "—");
-    const bytes   = s.network?.bytes || s.totBytes || s.totDataBytes || 0;
+    const ipProto = s.ipProtocol;
+    const proto   = Array.isArray(s.protocols) && s.protocols.length ? s.protocols.join(", ")
+                  : (s.protocols || IP_PROTO_MAP[ipProto] || (ipProto ? `IP:${ipProto}` : "—"));
+    const bytes   = s.network?.bytes || s.totDataBytes || s.totBytes || 0;
     const pkts    = s.network?.packets || s["network.packets"] || s.packets || s.totPackets || 0;
     const tagsVal = Array.isArray(s.tags) ? s.tags.join(", ") : (s.tags || "");
     const node    = s.node || "";
@@ -3418,10 +3433,14 @@ function renderSessionsInto(bodyId, data) {
     const sid     = s.id || "";
     const sStart  = fp ? Math.floor(fp/1000) : 0;
     const sEnd    = lp ? Math.floor(lp/1000)+1 : sStart+1;
-    const cleanBase = baseUrl.replace(/\/+$/, "");  // remove trailing slashes
     const arkLink = sid
       ? `${cleanBase}/sessions?date=-1&startTime=${sStart}&stopTime=${sEnd}&expression=${encodeURIComponent('id=="'+sid+'"')}`
       : "";
+
+    // Store computed values for sorting
+    s._bytes = bytes;
+    s._pkts = pkts;
+    s._dur = durMs;
 
     return `<tr>
       <td style="white-space:nowrap;font-size:.72rem;color:var(--text-3)">${ts}</td>
@@ -3439,21 +3458,38 @@ function renderSessionsInto(bodyId, data) {
     </tr>`;
   }).join("");
 
-  const countNote = total > sessions.length
-    ? `Showing ${sessions.length} of ${fmt(total)} sessions`
+  const countNote = total > sessionData.length
+    ? `Showing ${sessionData.length} of ${fmt(total)} sessions`
     : `${fmt(total)} session${total !== 1 ? "s" : ""}`;
 
+  const sortInd = (col) => sessionSortCol === col ? (sessionSortDir > 0 ? " &#9650;" : " &#9660;") : "";
+
   document.getElementById(bodyId).innerHTML = `
-    <div class="corr-expr">Expression: ${esc(data.expression)}</div>
+    <div class="corr-expr">Expression: ${esc(expression)}</div>
     <div class="modal-count">${countNote}</div>
     <table>
       <thead><tr>
-        <th>Time (UTC)</th><th>Source</th><th>Destination</th><th>Protocol</th>
-        <th class="r">Bytes</th><th class="r">Pkts</th><th class="r">Dur</th>
+        <th class="sortable" onclick="sortSessions('time','${bodyId}','${jsStr(expression)}',${total})">Time${sortInd('time')}</th>
+        <th>Source</th><th>Destination</th><th>Protocol</th>
+        <th class="r sortable" onclick="sortSessions('bytes','${bodyId}','${jsStr(expression)}',${total})">Bytes${sortInd('bytes')}</th>
+        <th class="r sortable" onclick="sortSessions('pkts','${bodyId}','${jsStr(expression)}',${total})">Pkts${sortInd('pkts')}</th>
+        <th class="r sortable" onclick="sortSessions('dur','${bodyId}','${jsStr(expression)}',${total})">Dur${sortInd('dur')}</th>
         <th>Tags</th><th>Node</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+function sortSessions(col, bodyId, expression, total) {
+  if (sessionSortCol === col) {
+    sessionSortDir *= -1;
+  } else {
+    sessionSortCol = col;
+    sessionSortDir = -1;  // default descending for numeric
+  }
+  const key = col === 'time' ? 'firstPacket' : col === 'bytes' ? '_bytes' : col === 'pkts' ? '_pkts' : '_dur';
+  sessionData.sort((a, b) => ((a[key] || 0) - (b[key] || 0)) * sessionSortDir);
+  renderSessionTable(bodyId, expression, total);
 }
 
 function truncate(s, n) { return String(s).length > n ? String(s).slice(0, n-1) + "…" : String(s); }
