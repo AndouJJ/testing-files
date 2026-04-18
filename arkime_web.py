@@ -1471,6 +1471,44 @@ def do_delete_preset(data):
     return {"ok": True}
 
 
+# Port scan presets (separate namespace)
+def do_list_ps_presets():
+    store = _load_store()
+    presets = store.get("ps_presets", {})
+    return {"names": sorted(presets.keys())}
+
+
+def do_save_ps_preset(data):
+    name = (data.get("name") or "").strip()
+    cfg = data.get("config") or {}
+    if not name:
+        raise ValueError("Preset name is required")
+    store = _load_store()
+    store.setdefault("ps_presets", {})[name] = _strip_password(cfg)
+    _save_store(store)
+    return {"ok": True}
+
+
+def do_load_ps_preset(data):
+    name = (data.get("name") or "").strip()
+    store = _load_store()
+    presets = store.get("ps_presets", {})
+    if name not in presets:
+        raise ValueError(f"Preset not found: {name}")
+    return {"config": presets[name]}
+
+
+def do_delete_ps_preset(data):
+    name = (data.get("name") or "").strip()
+    store = _load_store()
+    presets = store.get("ps_presets", {})
+    if name in presets:
+        del presets[name]
+        store["ps_presets"] = presets
+        _save_store(store)
+    return {"ok": True}
+
+
 # ==============================================================================
 # Server-side results cache (keyed by hash of the relevant config fragment)
 # ==============================================================================
@@ -1949,7 +1987,17 @@ tr.clean td{opacity:.75}
       <button class="sec-act" onclick="togglePortScan()" id="portScanToggle">Show</button>
     </div>
     <div id="portScanBody" style="display:none">
-      <label class="no-mt">Mode</label>
+      <label class="no-mt">Preset</label>
+      <div class="preset-row">
+        <select id="psPresetSelect">
+          <option value="">— choose preset —</option>
+        </select>
+        <button class="btn-icon" onclick="loadPsPreset()" title="Load selected preset">&#x2B07;</button>
+        <button class="btn-icon" onclick="savePsPresetPrompt()" title="Save current config as preset">&#x1F4BE;</button>
+        <button class="btn-icon" onclick="deletePsPreset()" title="Delete selected preset">&#x1F5D1;</button>
+      </div>
+
+      <label>Mode</label>
       <select id="psMode" onchange="renderPortScanMode()">
         <option value="sig_to_port">1 &mdash; Signature on unexpected port</option>
         <option value="port_to_sig">2 &mdash; Unexpected protocol on known port</option>
@@ -2448,6 +2496,117 @@ async function deletePreset() {
     await refreshPresets();
     toast(`Deleted preset: ${name}`, "ok");
   } catch(e) { toast("Delete failed: " + e.message, "err"); }
+}
+
+// ── Port Scan Presets ────────────────────────────────────────────────────────
+let psPresetList = [];
+
+async function refreshPsPresets() {
+  try {
+    const res = await fetch("/api/ps-presets");
+    if (!res.ok) return;
+    const data = await res.json();
+    psPresetList = data.names || [];
+    const sel = document.getElementById("psPresetSelect");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— choose preset —</option>` +
+      psPresetList.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    if (psPresetList.includes(current)) sel.value = current;
+  } catch(_) {}
+}
+
+async function loadPsPreset() {
+  const name = document.getElementById("psPresetSelect").value;
+  if (!name) { toast("Choose a preset first", "err"); return; }
+  try {
+    const data = await apiFetch("/api/ps-preset/load", {name});
+    if (data.error) { toast(data.error, "err"); return; }
+    applyPsConfig(data.config || {});
+    toast(`Loaded preset: ${name}`, "ok");
+  } catch(e) { toast("Load failed: " + e.message, "err"); }
+}
+
+async function savePsPresetPrompt() {
+  const sel = document.getElementById("psPresetSelect");
+  const suggested = sel.value || "";
+  const name = prompt("Save current port scan configuration as preset:\n(enter a name, or an existing name to overwrite)", suggested);
+  if (!name || !name.trim()) return;
+  try {
+    const data = await apiFetch("/api/ps-preset/save", {name: name.trim(), config: getPortScanCfg()});
+    if (data.error) { toast(data.error, "err"); return; }
+    await refreshPsPresets();
+    document.getElementById("psPresetSelect").value = name.trim();
+    toast(`Saved preset: ${name.trim()}`, "ok");
+  } catch(e) { toast("Save failed: " + e.message, "err"); }
+}
+
+async function deletePsPreset() {
+  const name = document.getElementById("psPresetSelect").value;
+  if (!name) { toast("Choose a preset first", "err"); return; }
+  if (!confirm(`Delete preset "${name}"?`)) return;
+  try {
+    await apiFetch("/api/ps-preset/delete", {name});
+    await refreshPsPresets();
+    toast(`Deleted preset: ${name}`, "ok");
+  } catch(e) { toast("Delete failed: " + e.message, "err"); }
+}
+
+function applyPsConfig(cfg) {
+  // Set mode first (this shows/hides the right sections)
+  const mode = cfg.mode || "sig_to_port";
+  document.getElementById("psMode").value = mode;
+  renderPortScanMode();
+
+  // Mode 1: sig_to_port
+  if (mode === "sig_to_port") {
+    if (cfg.signature_field) document.getElementById("psSigField").value = cfg.signature_field;
+    if (cfg.port_field) document.getElementById("psPortField").value = cfg.port_field;
+    if (cfg.min_sessions != null) document.getElementById("psMinSessions").value = cfg.min_sessions;
+    if (cfg.max_sigs != null) document.getElementById("psMaxSigs").value = cfg.max_sigs;
+    if (cfg.dominance != null) document.getElementById("psDominance").value = cfg.dominance;
+    if (cfg.outlier_max != null) document.getElementById("psOutlierMax").value = cfg.outlier_max;
+  }
+  // Mode 2: port_to_sig
+  else if (mode === "port_to_sig") {
+    if (cfg.signature_field) document.getElementById("psSigField2").value = cfg.signature_field;
+    if (cfg.port_field) document.getElementById("psPortField2").value = cfg.port_field;
+    if (cfg.ports_to_check) document.getElementById("psPortsList").value = cfg.ports_to_check.join("\n");
+    if (cfg.port_expectations) {
+      const lines = Object.entries(cfg.port_expectations).map(([port, sigs]) => `${port}: ${sigs.join(", ")}`);
+      document.getElementById("psExpectations").value = lines.join("\n");
+    }
+  }
+  // Mode 3: host_diversity
+  else if (mode === "host_diversity") {
+    if (cfg.host_field) document.getElementById("psHostField").value = cfg.host_field;
+    if (cfg.port_field) document.getElementById("psPortField3").value = cfg.port_field;
+    if (cfg.signature_field) document.getElementById("psPinField").value = cfg.signature_field;
+    if (cfg.pinned_signature_value) document.getElementById("psPinValue").value = cfg.pinned_signature_value;
+    if (cfg.min_sessions != null) document.getElementById("psMinSessions3").value = cfg.min_sessions;
+    if (cfg.min_distinct_ports != null) document.getElementById("psMinDistinctPorts").value = cfg.min_distinct_ports;
+    if (cfg.port_ratio_threshold != null) document.getElementById("psPortRatio").value = cfg.port_ratio_threshold;
+    if (cfg.max_hosts != null) document.getElementById("psMaxHosts").value = cfg.max_hosts;
+  }
+  // Mode 4: byte_pattern
+  else if (mode === "byte_pattern") {
+    if (cfg.port_field) document.getElementById("psPortField4").value = cfg.port_field;
+    if (cfg.hunt_timeout != null) document.getElementById("psHuntTimeout").value = cfg.hunt_timeout;
+    if (cfg.cleanup_hunts != null) document.getElementById("psCleanupHunts").value = cfg.cleanup_hunts ? "true" : "false";
+    // Restore byte patterns
+    if (cfg.patterns && cfg.patterns.length) {
+      document.getElementById("bytePatternList").innerHTML = "";
+      for (const p of cfg.patterns) {
+        addBytePattern();
+        const rows = document.querySelectorAll("#bytePatternList .byte-pattern-row");
+        const lastRow = rows[rows.length - 1];
+        if (lastRow) {
+          lastRow.querySelector(".bp-pattern").value = p.pattern || "";
+          lastRow.querySelector(".bp-type").value = p.type || "hex";
+          lastRow.querySelector(".bp-ports").value = (p.expected_ports || []).join(", ");
+        }
+      }
+    }
+  }
 }
 
 // ── Test connection ──────────────────────────────────────────────────────────
@@ -3279,7 +3438,7 @@ function togglePortScan() {
   const show = body.style.display === "none";
   body.style.display = show ? "" : "none";
   btn.textContent = show ? "Hide" : "Show";
-  if (show) refreshBaselines();
+  if (show) { refreshBaselines(); refreshPsPresets(); }
 }
 
 // ── Byte pattern helpers (mode 4) ─────────────────────────────────────────────
@@ -4065,6 +4224,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/presets":
             try:    self._json(200, do_list_presets())
             except Exception as e: self._json(200, {"error": str(e)})
+        elif self.path == "/api/ps-presets":
+            try:    self._json(200, do_list_ps_presets())
+            except Exception as e: self._json(200, {"error": str(e)})
         elif self.path == "/api/baselines":
             try:    self._json(200, do_baseline_list())
             except Exception as e: self._json(200, {"error": str(e)})
@@ -4131,6 +4293,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif self.path == "/api/preset/delete":
             try:    self._json(200, do_delete_preset(cfg))
+            except Exception as e: self._json(200, {"error": str(e)})
+
+        elif self.path == "/api/ps-preset/save":
+            try:    self._json(200, do_save_ps_preset(cfg))
+            except Exception as e: self._json(200, {"error": str(e)})
+
+        elif self.path == "/api/ps-preset/load":
+            try:    self._json(200, do_load_ps_preset(cfg))
+            except Exception as e: self._json(200, {"error": str(e)})
+
+        elif self.path == "/api/ps-preset/delete":
+            try:    self._json(200, do_delete_ps_preset(cfg))
             except Exception as e: self._json(200, {"error": str(e)})
 
         elif self.path == "/api/correlate":
