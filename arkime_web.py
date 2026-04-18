@@ -2634,7 +2634,12 @@ async function testConn() {
     const cfg = getConfig();
     const res = await apiFetch("/api/test", cfg);
     setConn(res.ok ? "ok" : "err", res.message);
-    if (res.ok) { loadArkimeFields(cfg); loadArkimeTags(cfg); }
+    if (res.ok) {
+      loadArkimeFields(cfg);
+      loadArkimeTags(cfg);
+      // Save credentials on successful connection
+      saveSettingsToServer(cfg);
+    }
   } catch(e) {
     setConn("err", "Request failed: " + e.message);
   }
@@ -2670,7 +2675,7 @@ async function runAnalysis() {
   if (!cfg.start_date)     { toast("Please set a start date.", "err"); return; }
   if (!cfg.end_date)       { toast("Please set an end date.", "err"); return; }
 
-  const toSave = {...cfg}; delete toSave.password;
+  const toSave = {...cfg};
   localStorage.setItem("arkime_ui_cfg", JSON.stringify(toSave));
   saveSettingsToServer(toSave);
 
