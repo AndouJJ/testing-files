@@ -1040,7 +1040,6 @@ def _create_hunt(cfg, name, search_text, search_type, src=True, dst=True):
 def _get_hunt_status(cfg, hunt_id):
     """Get the status and results of a hunt."""
     params = {"date": "-1"}
-    params.update(_time_params(cfg))
     body = _get(cfg, f"/api/hunts", params)
     if not body or not body.strip():
         raise RuntimeError(f"Empty response for hunts")
@@ -1049,14 +1048,14 @@ def _get_hunt_status(cfg, hunt_id):
     for hunt in data.get("data", []):
         if hunt.get("id") == hunt_id:
             return {"hunt": hunt}
-    # Hunt not found - might have been auto-deleted after completion
-    # Return a finished status with 0 matches
-    return {"hunt": {"id": hunt_id, "status": "finished", "matchedSessions": 0}}
+    # Hunt not found - return not_found status so we keep polling
+    return {"hunt": {"id": hunt_id, "status": "not_found"}}
 
 
 def _wait_for_hunt(cfg, hunt_id, poll_interval=2, max_wait=300):
     """Poll until a hunt finishes or times out. Returns the hunt object."""
     start = time.time()
+    last_good_hunt = None
     while time.time() - start < max_wait:
         status = _get_hunt_status(cfg, hunt_id)
         hunt = status.get("hunt", status)
@@ -1064,38 +1063,33 @@ def _wait_for_hunt(cfg, hunt_id, poll_interval=2, max_wait=300):
             return hunt
         if hunt.get("status") == "error":
             raise RuntimeError(f"Hunt failed: {hunt.get('error', 'unknown error')}")
+        if hunt.get("status") == "not_found":
+            # Hunt disappeared - if we had a previous good status, it finished
+            if last_good_hunt and last_good_hunt.get("matchedSessions", 0) > 0:
+                last_good_hunt["status"] = "finished"
+                return last_good_hunt
+            # Otherwise keep polling briefly in case it's still being created
+            time.sleep(poll_interval)
+            continue
+        # Remember this hunt state
+        last_good_hunt = hunt
         time.sleep(poll_interval)
     raise RuntimeError(f"Hunt {hunt_id} timed out after {max_wait}s")
 
 
 def _get_hunt_sessions(cfg, hunt_id, limit=1000):
-    """Get sessions that matched a hunt by querying with huntId or huntName."""
+    """Get sessions that matched a hunt by querying with huntId."""
     params = {
+        "huntId": hunt_id,
         "length": str(limit),
         "date": "-1",
-        "fields": "port.dst,port.src,ip.src,ip.dst,firstPacket,lastPacket,node,source,destination",
     }
-    time_p = _time_params(cfg)
-    params.update(time_p)
 
-    # Try with huntId parameter
-    params["huntId"] = hunt_id
     body = _get(cfg, "/api/sessions", params)
     if body and body.strip():
         data = json.loads(body) if isinstance(body, str) else body
-        sessions = data.get("data", [])
-        if sessions:
-            return sessions
-
-    # If no sessions found with huntId, the hunt might have tagged the sessions
-    # Try querying by hunt tag
-    del params["huntId"]
-    params["expression"] = f'tags == "hunt:{hunt_id}"'
-    body = _get(cfg, "/api/sessions", params)
-    if not body or not body.strip():
-        return []
-    data = json.loads(body) if isinstance(body, str) else body
-    return data.get("data", [])
+        return data.get("data", [])
+    return []
 
 
 def _delete_hunt(cfg, hunt_id):
