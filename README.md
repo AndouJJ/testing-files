@@ -11,11 +11,12 @@ A web-based tool for analyzing network traffic captured by [Arkime](https://arki
 - Customizable allowlists with wildcard support
 
 ### Port Anomaly Scan
-Three detection modes:
+Four detection modes:
 
 1. **Signature on Unexpected Port** - Finds traffic where application signatures (JA3, user agents) appear on unusual ports
 2. **Unexpected Protocol on Known Port** - Detects non-standard protocols on well-known ports (e.g., non-DNS on port 53)
 3. **Host Using Many Ports** - Identifies hosts scanning or beaconing across many destination ports
+4. **Byte Pattern on Unexpected Port** - Searches raw packet payloads for hex or ASCII patterns using Arkime's Hunt API and flags when patterns appear on unexpected ports
 
 ### Additional Features
 - Named presets for saving configurations
