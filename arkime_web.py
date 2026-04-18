@@ -1040,7 +1040,7 @@ def _create_hunt(cfg, name, search_text, search_type, src=True, dst=True):
 
 def _get_hunt_status(cfg, hunt_id):
     """Get the status and results of a hunt."""
-    params = {"date": "-1"}
+    params = {"date": "-1", "history": "all"}
     body = _get(cfg, f"/api/hunts", params)
     if not body or not body.strip():
         raise RuntimeError(f"Empty response for hunts")
