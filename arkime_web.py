@@ -177,6 +177,9 @@ def _fetch_unique(cfg, field, expression):
     params.update(_time_params(cfg))
     if expression:
         params["expression"] = expression
+    max_unique = int(cfg.get("max_unique", 0))
+    if max_unique > 0:
+        params["maxvaluesperfield"] = str(max_unique)
 
     body, last_err = None, None
     for path in ("/api/unique", "/unique.txt"):
@@ -1477,6 +1480,8 @@ tr.clean td{opacity:.75}
     </div>
     <label>Max rare rows shown <span style="font-weight:400;color:#9ca3af">(0 = unlimited)</span></label>
     <input type="number" id="maxRare" value="50" min="0">
+    <label>Max unique values per field <span style="font-weight:400;color:#9ca3af">(0 = server default)</span></label>
+    <input type="number" id="maxUnique" value="0" min="0">
     <div class="row2" style="margin-top:8px">
       <div>
         <label class="no-mt">Timeout (s)</label>
@@ -1800,6 +1805,7 @@ function getConfig() {
     top_n:            parseInt(document.getElementById("topN").value)      || 20,
     rare_threshold:   parseInt(document.getElementById("rareThresh").value) || 3,
     max_rare_display: parseIntOr(document.getElementById("maxRare").value, 50),
+    max_unique:       parseIntOr(document.getElementById("maxUnique").value, 0),
     timeout_secs:     parseInt(document.getElementById("timeoutSecs").value) || 1800,
     max_workers:      parseInt(document.getElementById("maxWorkers").value) || 6,
     anom_hints:       document.getElementById("anomHints").checked,
@@ -1820,6 +1826,7 @@ function loadConfig(c) {
   set("topN",       c.top_n);
   set("rareThresh", c.rare_threshold);
   set("maxRare",      c.max_rare_display);
+  set("maxUnique",    c.max_unique);
   set("timeoutSecs",  c.timeout_secs);
   set("maxWorkers",   c.max_workers);
   if (c.auth_type) document.getElementById("authType").value = c.auth_type;
