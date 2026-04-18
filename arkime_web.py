@@ -2856,7 +2856,7 @@ function errCard(r) {
 }
 
 function resultCard(r, cfg) {
-  const maxTop  = r.top_n.length ? r.top_n[0].count : 1;
+  const maxTop  = r.top_n.length ? Math.max(...r.top_n.map(x => x.count)) : 1;
   const topKey  = `${r.field}::top`;
   const rareKey = `${r.field}::rare`;
   const cardId  = `card-${btoa(r.field).replace(/[^a-zA-Z0-9]/g, '')}`;
