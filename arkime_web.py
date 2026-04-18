@@ -2329,7 +2329,8 @@ function _srchToggle(inp, opts) {
 function _srchPick(el) {
   const wrap = el.closest('.srch-wrap');
   const inp  = wrap.querySelector('input');
-  inp.value  = el.dataset.val;
+  const val  = el.dataset.val;
+  inp.value  = val;
   wrap.querySelector('.srch-list').style.display = 'none';
   const mode = wrap.dataset.mode;
   if (mode === 'field') {
@@ -2337,6 +2338,8 @@ function _srchPick(el) {
   } else if (mode === 'tag-row') {
     tags[parseInt(wrap.dataset.idx)] = val;
   }
+  // Trigger change event to ensure value is captured
+  inp.dispatchEvent(new Event('change'));
 }
 
 function _srchClose(inp) {
@@ -2367,8 +2370,17 @@ function renderTags() {
 }
 
 // ── Fields ───────────────────────────────────────────────────────────────────
-function addField(val) { fields.push(val || ""); renderFields(); }
-function removeField(i) { fields.splice(i, 1); renderFields(); }
+function syncFieldsFromDOM() {
+  document.querySelectorAll('#fieldList .srch-wrap[data-mode="field"]').forEach(wrap => {
+    const idx = parseInt(wrap.dataset.idx);
+    const inp = wrap.querySelector('input');
+    if (inp && !isNaN(idx) && idx < fields.length) {
+      fields[idx] = inp.value;
+    }
+  });
+}
+function addField(val) { syncFieldsFromDOM(); fields.push(val || ""); renderFields(); }
+function removeField(i) { syncFieldsFromDOM(); fields.splice(i, 1); renderFields(); }
 function renderFields() {
   document.getElementById("fieldList").innerHTML = fields.map((f, i) =>
     `<div class="field-row">
@@ -2376,7 +2388,7 @@ function renderFields() {
         <input type="text" class="srch-inp" value="${esc(f)}" placeholder="Select or search…"
                oninput="_srchRender(this,arkimeFields,this.value);fields[${i}]=this.value"
                onfocus="_srchRender(this,arkimeFields,this.value)"
-               onblur="_srchClose(this)"
+               onblur="_srchClose(this);fields[${i}]=this.value"
                onchange="fields[${i}]=this.value">
         <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">▾</button>
         <div class="srch-list"></div>
