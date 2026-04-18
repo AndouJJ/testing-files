@@ -1149,7 +1149,7 @@ header .sub{font-size:.75rem;color:#ffffff70}
 
 label{display:block;font-size:.75rem;font-weight:600;color:var(--text-2);margin-bottom:3px;margin-top:8px}
 label:first-of-type,label.no-mt{margin-top:0}
-input[type=text],input[type=password],input[type=number],input[type=datetime-local],select,textarea{
+input[type=text],input[type=password],input[type=number],input[type=datetime-local],input[type=date],select,textarea{
   width:100%;padding:6px 9px;border:1px solid var(--input-border);border-radius:6px;
   font-size:.8rem;color:var(--text-1);background:var(--input-bg)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6;background:var(--surface)}
@@ -1166,6 +1166,12 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 .quick-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
 .quick-btn{flex:1;min-width:38px;padding:4px 6px;font-size:.7rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);border-radius:5px;cursor:pointer;font-weight:600}
 .quick-btn:hover{border-color:#3b82f6;color:#3b82f6}
+.dt-row{display:flex;flex-direction:column;gap:4px;margin-bottom:2px}
+.time-row{display:flex;align-items:center;gap:5px}
+.time-row input[type=number]{width:52px!important;text-align:center;padding:6px 4px;flex-shrink:0}
+.dt-sep{font-weight:700;color:var(--text-2);flex-shrink:0}
+.ampm-sel{width:64px!important;padding:6px 4px!important;flex-shrink:0}
+.fmt-sel{width:auto!important;padding:2px 5px!important;font-size:.65rem!important;font-weight:700;margin-left:6px;flex-shrink:0}
 
 /* Tags */
 .tag-add-row{display:flex;gap:6px;margin-top:5px}
@@ -1400,11 +1406,39 @@ tr.clean td{opacity:.75}
   </div>
 
   <div class="sec">
-    <div class="sec-title">Time Range <span style="font-weight:400;color:#d1d5db;font-size:.85em">(local time)</span></div>
+    <div class="sec-title">
+      Time Range <span style="font-weight:400;color:#d1d5db;font-size:.85em">(local time)</span>
+      <select id="timeFormat" class="fmt-sel" onchange="onTimeFormatChange()">
+        <option value="24h">24H</option>
+        <option value="12h">12H</option>
+      </select>
+    </div>
     <label class="no-mt">Start</label>
-    <input type="datetime-local" id="startDate">
+    <div class="dt-row">
+      <input type="date" id="startDatePart">
+      <div class="time-row">
+        <input type="number" id="startHour" min="0" max="23" placeholder="HH">
+        <span class="dt-sep">:</span>
+        <input type="number" id="startMin" min="0" max="59" placeholder="MM">
+        <select id="startAmpm" class="ampm-sel" style="display:none">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+    </div>
     <label>End</label>
-    <input type="datetime-local" id="endDate">
+    <div class="dt-row">
+      <input type="date" id="endDatePart">
+      <div class="time-row">
+        <input type="number" id="endHour" min="0" max="23" placeholder="HH">
+        <span class="dt-sep">:</span>
+        <input type="number" id="endMin" min="0" max="59" placeholder="MM">
+        <select id="endAmpm" class="ampm-sel" style="display:none">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+    </div>
     <div class="quick-row">
       <button class="quick-btn" onclick="setQuickRange(1)">1h</button>
       <button class="quick-btn" onclick="setQuickRange(4)">4h</button>
@@ -1662,10 +1696,19 @@ let corrStack   = [];          // breadcrumb trail inside the modal
     document.getElementById("darkToggle").textContent = "\u2600\uFE0F";
   }
 
+  const savedFmt = localStorage.getItem("arkime_time_fmt") || "24h";
+  document.getElementById("timeFormat").value = savedFmt;
+  if (savedFmt === "12h") {
+    for (const p of ["start", "end"]) {
+      document.getElementById(p + "Hour").min = 1;
+      document.getElementById(p + "Hour").max = 12;
+      document.getElementById(p + "Ampm").style.display = "";
+    }
+  }
   const now  = new Date();
   const prev = new Date(now - 86400000);
-  document.getElementById("startDate").value = dtLocal(prev);
-  document.getElementById("endDate").value   = dtLocal(now);
+  setDateTimeFromDate("start", prev);
+  setDateTimeFromDate("end",   now);
 
   await loadSettingsFromServer();
   try {
@@ -1679,16 +1722,86 @@ let corrStack   = [];          // breadcrumb trail inside the modal
   refreshPresets();
 })();
 
-function dtLocal(d) {
-  const z = n => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+function _pad(n) { return String(n).padStart(2, "0"); }
+
+function setDateTimeFromDate(prefix, d) {
+  document.getElementById(prefix + "DatePart").value =
+    `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+  const fmt = document.getElementById("timeFormat").value;
+  let hour = d.getHours();
+  const min = d.getMinutes();
+  if (fmt === "12h") {
+    document.getElementById(prefix + "Ampm").value = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+  }
+  document.getElementById(prefix + "Hour").value = hour;
+  document.getElementById(prefix + "Min").value  = _pad(min);
+}
+
+function getDateTimeStr(prefix) {
+  const datePart = document.getElementById(prefix + "DatePart").value;
+  const fmt = document.getElementById("timeFormat").value;
+  let hour = parseInt(document.getElementById(prefix + "Hour").value, 10) || 0;
+  const min = parseInt(document.getElementById(prefix + "Min").value, 10) || 0;
+  if (fmt === "12h") {
+    const ampm = document.getElementById(prefix + "Ampm").value;
+    if (ampm === "AM") { if (hour === 12) hour = 0; }
+    else               { if (hour !== 12) hour += 12; }
+  }
+  return `${datePart} ${_pad(hour)}:${_pad(min)}:00`;
+}
+
+function setDateTimeStr(prefix, isoStr) {
+  if (!isoStr) return;
+  const [datePart, timePart] = isoStr.replace("T", " ").split(" ");
+  if (!datePart) return;
+  document.getElementById(prefix + "DatePart").value = datePart;
+  const [hStr, mStr] = (timePart || "00:00").split(":");
+  let hour = parseInt(hStr, 10) || 0;
+  const min = parseInt(mStr, 10) || 0;
+  const fmt = document.getElementById("timeFormat").value;
+  if (fmt === "12h") {
+    document.getElementById(prefix + "Ampm").value = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+  }
+  document.getElementById(prefix + "Hour").value = hour;
+  document.getElementById(prefix + "Min").value  = _pad(min);
+}
+
+function _readAs24H(prefix, fmt) {
+  const datePart = document.getElementById(prefix + "DatePart").value;
+  let hour = parseInt(document.getElementById(prefix + "Hour").value, 10) || 0;
+  const min = parseInt(document.getElementById(prefix + "Min").value, 10) || 0;
+  if (fmt === "12h") {
+    const ampm = document.getElementById(prefix + "Ampm").value;
+    if (ampm === "AM") { if (hour === 12) hour = 0; }
+    else               { if (hour !== 12) hour += 12; }
+  }
+  return `${datePart} ${_pad(hour)}:${_pad(min)}:00`;
+}
+
+function onTimeFormatChange() {
+  const newFmt = document.getElementById("timeFormat").value;
+  const oldFmt = newFmt === "12h" ? "24h" : "12h";
+  const start24 = _readAs24H("start", oldFmt);
+  const end24   = _readAs24H("end",   oldFmt);
+  const is12 = newFmt === "12h";
+  for (const p of ["start", "end"]) {
+    const h = document.getElementById(p + "Hour");
+    h.min = is12 ? 1 : 0;
+    h.max = is12 ? 12 : 23;
+    document.getElementById(p + "Ampm").style.display = is12 ? "" : "none";
+  }
+  setDateTimeStr("start", start24);
+  setDateTimeStr("end",   end24);
+  localStorage.setItem("arkime_time_fmt", newFmt);
 }
 
 function setQuickRange(hours) {
-  const now = new Date();
+  const now   = new Date();
   const start = new Date(now - hours * 3600 * 1000);
-  document.getElementById("startDate").value = dtLocal(start);
-  document.getElementById("endDate").value   = dtLocal(now);
+  setDateTimeFromDate("start", start);
+  setDateTimeFromDate("end",   now);
 }
 
 function toggleAuth() {
@@ -1760,8 +1873,8 @@ function getConfig() {
     password:         document.getElementById("password").value,
     api_key:          document.getElementById("apiKey").value,
     skip_tls_verify:  document.getElementById("skipTls").checked,
-    start_date:       document.getElementById("startDate").value,
-    end_date:         document.getElementById("endDate").value,
+    start_date:       getDateTimeStr("start"),
+    end_date:         getDateTimeStr("end"),
     tags:             [...tags],
     tags_match:       document.querySelector('input[name="tagsMatch"]:checked').value,
     expression:       document.getElementById("expression").value.trim(),
@@ -1794,8 +1907,8 @@ function loadConfig(c) {
   if (c.auth_type) document.getElementById("authType").value = c.auth_type;
   if (c.skip_tls_verify) document.getElementById("skipTls").checked = true;
   if (c.anom_hints !== undefined) document.getElementById("anomHints").checked = !!c.anom_hints;
-  if (c.start_date) document.getElementById("startDate").value = c.start_date;
-  if (c.end_date)   document.getElementById("endDate").value   = c.end_date;
+  if (c.start_date) setDateTimeStr("start", c.start_date);
+  if (c.end_date)   setDateTimeStr("end",   c.end_date);
   if (Array.isArray(c.tags))   { tags   = c.tags;   renderTags(); }
   if (Array.isArray(c.fields)) { fields = c.fields; renderFields(); }
   if (c.tags_match) {
