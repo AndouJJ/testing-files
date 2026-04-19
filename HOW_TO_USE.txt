@@ -228,7 +228,12 @@ Configuration:
   Expected signatures   Format:   port: sig1,sig2
 
 Click "Load default port list" to pre-fill both fields with
-common well-known ports.
+common well-known ports. The built-in list includes 400+
+port-to-protocol mappings sourced from:
+  - IANA Service Name Registry
+  - nDPI deep packet inspection library
+  - Wikipedia protocol references
+  - Common enterprise services
 
 A port is FLAGGED when at least one session on that port
 has a signature NOT in the expected list.

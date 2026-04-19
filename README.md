@@ -14,9 +14,9 @@ A web-based tool for analyzing network traffic captured by [Arkime](https://arki
 Four detection modes:
 
 1. **Signature on Unexpected Port** - Finds traffic where application signatures (JA3, user agents) appear on unusual ports
-2. **Unexpected Protocol on Known Port** - Detects non-standard protocols on well-known ports (e.g., non-DNS on port 53)
+2. **Unexpected Protocol on Known Port** - Detects non-standard protocols on well-known ports (e.g., non-DNS on port 53). Includes 400+ port-to-protocol mappings from IANA, nDPI, and common services
 3. **Host Using Many Ports** - Identifies hosts scanning or beaconing across many destination ports
-4. **Byte Pattern on Unexpected Port** - Searches raw packet payloads for hex or ASCII patterns using Arkime's Hunt API and flags when patterns appear on unexpected ports. Example patterns:
+4. **Byte Pattern on Unexpected Port** - Searches raw packet payloads for hex or ASCII patterns using Arkime's Hunt API and flags when patterns appear on unexpected ports. Note: Results may include ephemeral source ports which are typically benign. Example patterns:
    - `160303` (hex) - TLS 1.2/1.3 handshake, expected on port 443
    - `SSH-2.0` (ASCII) - SSH banner, expected on port 22
    - `4d5a` (hex) - Windows executable (MZ header), suspicious on any port
