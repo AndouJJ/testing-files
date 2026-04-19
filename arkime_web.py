@@ -724,7 +724,8 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     def one(sig_val, sig_count):
         try:
             escaped = _esc_val(sig_val)
-            pivot = f'{sig_field} == "{escaped}"'
+            # Use wildcard match - more forgiving for fields with special indexing
+            pivot = f'{sig_field} == "*{escaped}*"'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_field, full)
             # Debug: if no results, include the query for troubleshooting
