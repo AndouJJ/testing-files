@@ -723,9 +723,8 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     # Step B: for each signature, fetch its port distribution
     def one(sig_val, sig_count):
         try:
-            escaped = _esc_val(sig_val)
-            # Use wildcard match - more forgiving for fields with special indexing
-            pivot = f'{sig_field} == "*{escaped}*"'
+            # Use CONTAINS operator - works better for text fields
+            pivot = f'{sig_field} CONTAINS "{_esc_val(sig_val)}"'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_field, full)
             # Debug: if no results, include the query for troubleshooting
