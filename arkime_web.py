@@ -240,10 +240,26 @@ def _time_params(cfg):
 def _esc_val(v):
     """
     Escape a value for use inside an Arkime expression string literal.
-    Arkime expressions use double-quoted strings; backslash and double-quote
-    must be escaped.
+    Arkime expressions use double-quoted strings; backslash, double-quote,
+    and special regex/expression characters must be escaped.
     """
-    return str(v).replace("\\", "\\\\").replace('"', '\\"')
+    s = str(v)
+    s = s.replace("\\", "\\\\")
+    s = s.replace('"', '\\"')
+    s = s.replace("(", "\\(")
+    s = s.replace(")", "\\)")
+    s = s.replace("[", "\\[")
+    s = s.replace("]", "\\]")
+    s = s.replace("*", "\\*")
+    s = s.replace("?", "\\?")
+    s = s.replace("+", "\\+")
+    s = s.replace(".", "\\.")
+    s = s.replace("^", "\\^")
+    s = s.replace("$", "\\$")
+    s = s.replace("|", "\\|")
+    s = s.replace("{", "\\{")
+    s = s.replace("}", "\\}")
+    return s
 
 
 def _build_expr(cfg):
