@@ -702,7 +702,9 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     base_expr = _build_expr(cfg)
 
     # Step A: get top ports by volume
-    ports_raw = _fetch_unique(cfg, port_field, base_expr)
+    # Use port.dst for unique query (Arkime's unique API needs a specific field)
+    port_query_field = "port.dst" if port_field == "port" else port_field
+    ports_raw = _fetch_unique(cfg, port_query_field, base_expr)
     top_ports = [p for p, c in ports_raw[:200]]  # limit to top 200 ports
 
     if not top_ports:
@@ -714,7 +716,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
             "total_signatures_seen": 0,
             "eligible_signatures": 0,
             "truncated": False,
-            "warning": f"No ports found for field '{port_field}'",
+            "warning": f"No ports found for field '{port_query_field}'",
         }
 
     # Step B: for each port, get signature distribution
