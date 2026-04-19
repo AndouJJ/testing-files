@@ -723,9 +723,24 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     # Step B: for each signature, fetch its port distribution
     def one(sig_val, sig_count):
         try:
-            pivot = f'{sig_field} == "{_esc_val(sig_val)}"'
+            escaped = _esc_val(sig_val)
+            pivot = f'{sig_field} == "{escaped}"'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_field, full)
+            # Debug: if no results, include the query for troubleshooting
+            if not port_raw:
+                return {
+                    "signature": sig_val,
+                    "total": 0,
+                    "dominant_port": None,
+                    "dominant_share": 0,
+                    "distinct_ports": 0,
+                    "entropy": 0,
+                    "ports": [],
+                    "outliers": [],
+                    "flagged": False,
+                    "error": f"No port data. Query: {pivot[:100]}...",
+                }
             port_counts = {v: c for v, c in port_raw}
             dom, dom_share, entropy, total = _port_share_stats(port_counts)
             ports_sorted = sorted(port_counts.items(), key=lambda kv: kv[1], reverse=True)
