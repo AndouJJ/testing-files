@@ -683,49 +683,46 @@ def _port_share_stats(port_counts):
     return dominant[0], round(dom_share, 4), round(entropy, 3), total
 
 
-def do_port_scan_protocol_anomaly(cfg, progress=None):
+def do_port_scan_sig_to_port(cfg, progress=None):
     """
-    Unified Protocol Anomaly mode - merges old modes 1, 2, and 4.
+    Mode 1: For each signature, find its port distribution and flag those
+    where traffic is concentrated on one port but has outliers on others.
 
-    Queries ports and collects signatures, then provides dual analysis:
-    - Signature view: which ports each signature uses, flags outliers
-    - Port view: what signatures appear on each port vs. expected
-
-    Optional byte pattern hunting when patterns are provided.
+    Instead of querying per-signature (which fails for complex string values),
+    we query per-port to get signatures, then pivot the data.
     """
-    sig_field   = cfg.get("signature_field") or "http.useragent"
-    port_field  = cfg.get("port_field") or "port"
-    min_sess    = int(cfg.get("min_sessions", 10))
-    max_sigs    = int(cfg.get("max_sigs", 100))
-    dominance   = float(cfg.get("dominance", 0.9))
-    outlier_max = int(cfg.get("outlier_max", 3))
-    max_other   = int(cfg.get("max_other_sigs", 20))
-    expectations = cfg.get("port_expectations") or PORT_EXPECTATIONS_DEFAULT
-    patterns    = cfg.get("patterns") or []
+    sig_field  = cfg.get("signature_field") or "tls.ja3"
+    port_field = cfg.get("port_field") or "port"
+    min_sess   = int(cfg.get("min_sessions", 10))
+    max_sigs   = int(cfg.get("max_sigs", 100))
+    dominance  = float(cfg.get("dominance", 0.9))
+    outlier_max= int(cfg.get("outlier_max", 3))
 
     _ = _time_params(cfg)  # validate
     base_expr = _build_expr(cfg)
 
     # Step A: get top ports by volume
+    # Use port.dst for unique query (Arkime's unique API needs a specific field)
     port_query_field = "port.dst" if port_field == "port" else port_field
     ports_raw = _fetch_unique(cfg, port_query_field, base_expr)
-    top_ports = [(p, c) for p, c in ports_raw[:500]]  # increased limit
+    top_ports = [p for p, c in ports_raw[:200]]  # limit to top 200 ports
 
     if not top_ports:
         return {
-            "mode": "protocol_anomaly",
+            "mode": "sig_to_port",
             "signature_field": sig_field,
             "port_field": port_field,
-            "signature_view": {"signatures": [], "total_seen": 0, "eligible": 0, "truncated": False},
-            "port_view": {"ports": []},
-            "byte_patterns": {"patterns": []} if patterns else None,
+            "signatures": [],
+            "total_signatures_seen": 0,
+            "eligible_signatures": 0,
+            "truncated": False,
             "warning": f"No ports found for field '{port_query_field}'",
         }
 
     # Step B: for each port, get signature distribution
+    # Build a map: signature -> {port: count}
     sig_to_ports = {}  # sig_val -> {port: count}
     sig_totals = {}    # sig_val -> total count
-    port_to_sigs = {}  # port -> [(sig, count), ...]
 
     def fetch_port(port):
         try:
@@ -738,17 +735,16 @@ def do_port_scan_protocol_anomaly(cfg, progress=None):
     total_ports = len(top_ports)
     done_count = 0
     if progress:
-        progress(0, total_ports, "Querying ports...")
+        progress(0, total_ports, None)
 
     errors = []
     workers = min(len(top_ports), int(cfg.get("max_workers", 6)))
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = {ex.submit(fetch_port, p): p for p, c in top_ports}
+        futures = {ex.submit(fetch_port, p): p for p in top_ports}
         for fut in as_completed(futures):
             port, sigs, err = fut.result()
             if err:
                 errors.append(f"port {port}: {err}")
-            port_to_sigs[port] = sigs
             for sig_val, count in sigs:
                 if sig_val not in sig_to_ports:
                     sig_to_ports[sig_val] = {}
@@ -759,13 +755,13 @@ def do_port_scan_protocol_anomaly(cfg, progress=None):
             if progress:
                 progress(done_count, total_ports, f"port {port}")
 
-    # === Signature View (old Mode 1) ===
+    # Step C: filter and analyze each signature
     eligible = [(sig, sig_totals[sig]) for sig in sig_to_ports if sig_totals[sig] >= min_sess]
     eligible.sort(key=lambda x: -x[1])
     truncated = len(eligible) > max_sigs
     eligible = eligible[:max_sigs]
 
-    sig_results = []
+    results = []
     for sig_val, total in eligible:
         port_counts = sig_to_ports[sig_val]
         dom, dom_share, entropy, _ = _port_share_stats(port_counts)
@@ -773,7 +769,7 @@ def do_port_scan_protocol_anomaly(cfg, progress=None):
         outliers = [(p, c) for p, c in ports_sorted if p != dom and c <= outlier_max]
         flagged = dom_share >= dominance and len(outliers) > 0
 
-        sig_results.append({
+        results.append({
             "signature":       sig_val,
             "total":           total,
             "dominant_port":   dom,
@@ -785,63 +781,21 @@ def do_port_scan_protocol_anomaly(cfg, progress=None):
             "flagged":         flagged,
         })
 
-    sig_results.sort(key=lambda r: (0 if r.get("flagged") else 1, -(r.get("total") or 0)))
-
-    # === Port View (old Mode 2) ===
-    port_results = []
-    for port, port_count in top_ports:
-        sigs = port_to_sigs.get(port, [])
-        total = sum(c for _, c in sigs)
-        expected = set(expectations.get(str(port), []))
-
-        matches = []
-        unexpected = []
-        for sig, count in sigs:
-            tokens = [t.strip().lower() for t in str(sig).split(",")] if sig_field == "protocols" else [str(sig).lower()]
-            if expected and any(t in expected for t in tokens):
-                matches.append({"signature": sig, "count": count})
-            else:
-                unexpected.append({"signature": sig, "count": count})
-
-        unexpected_total = sum(u["count"] for u in unexpected)
-        flagged = bool(expected) and unexpected_total > 0
-
-        port_results.append({
-            "port":             port,
-            "expected":         sorted(expected) if expected else [],
-            "total":            total,
-            "matches":          matches[:max_other],
-            "unexpected":       unexpected[:max_other],
-            "unexpected_total": unexpected_total,
-            "unexpected_unique": len(unexpected),
-            "flagged":          flagged,
-        })
-
-    def _port_key(r):
-        try:   return int(r.get("port"))
-        except Exception: return 99999
-    port_results.sort(key=lambda r: (0 if r.get("flagged") else 1, _port_key(r)))
-
-    # === Byte Pattern View (old Mode 4) - optional ===
-    byte_results = None
-    if patterns:
-        byte_results = _run_byte_patterns(cfg, patterns, progress, done_count, total_ports)
+    # Sort: flagged first (by total desc), then by distinct_ports desc
+    results.sort(key=lambda r: (
+        0 if r.get("flagged") else 1,
+        -(r.get("total") or 0),
+    ))
 
     result = {
-        "mode": "protocol_anomaly",
-        "signature_field": sig_field,
-        "port_field": port_field,
-        "ports_queried": len(top_ports),
-        "signature_view": {
-            "signatures":         sig_results,
-            "total_seen":         len(sig_to_ports),
-            "eligible":           len(eligible),
-            "truncated":          truncated,
-        },
-        "port_view": {
-            "ports": port_results,
-        },
-        "byte_patterns": byte_results,
+        "mode":                   "sig_to_port",
+        "signature_field":        sig_field,
+        "port_field":             port_field,
+        "signatures":             results,
+        "total_signatures_seen":  len(sig_to_ports),
+        "eligible_signatures":    len(eligible),
+        "truncated":              truncated,
+        "ports_queried":          len(top_ports),
         "thresholds": {
             "min_sessions": min_sess,
             "max_sigs":     max_sigs,
@@ -850,140 +804,87 @@ def do_port_scan_protocol_anomaly(cfg, progress=None):
         },
     }
     if errors:
-        result["errors"] = errors[:10]
+        result["errors"] = errors[:10]  # limit to first 10 errors
     return result
 
 
-def _run_byte_patterns(cfg, patterns, progress=None, progress_offset=0, progress_total=0):
-    """Run byte pattern hunts (from old Mode 4)."""
-    port_field = cfg.get("port_field") or "port"
-    cleanup = cfg.get("cleanup_hunts", True)
-    hunt_timeout = int(cfg.get("hunt_timeout", 300))
-
-    results = []
-    total = len(patterns)
-
-    for i, pat_cfg in enumerate(patterns):
-        pattern = pat_cfg.get("pattern", "").strip()
-        pat_type = pat_cfg.get("type", "hex").lower()
-        expected_ports = set(int(p) for p in pat_cfg.get("expected_ports", []))
-
-        if not pattern:
-            results.append({"pattern": pattern, "error": "Empty pattern"})
-            continue
-
-        search_type = "hex" if pat_type == "hex" else "ascii"
-
-        try:
-            hunt_name = f"luxray_byte_scan_{pattern[:20]}_{int(time.time())}"
-            hunt_id = _create_hunt(cfg, hunt_name, pattern, search_type)
-            hunt = _wait_for_hunt(cfg, hunt_id, max_wait=hunt_timeout)
-            matched = hunt.get("matchedSessions", 0)
-
-            if matched == 0:
-                results.append({
-                    "pattern": pattern,
-                    "type": pat_type,
-                    "expected_ports": sorted(expected_ports),
-                    "matched_sessions": 0,
-                    "ports": [],
-                    "unexpected_ports": [],
-                    "flagged": False,
-                })
-            else:
-                sessions = _get_hunt_sessions(cfg, hunt_id)
-                port_counts = {}
-                for sess in sessions:
-                    ports = []
-                    if port_field == "port":
-                        p_dst = sess.get("destination", {}).get("port")
-                        p_src = sess.get("source", {}).get("port")
-                        if p_dst is not None:
-                            ports.append(p_dst)
-                        if p_src is not None:
-                            ports.append(p_src)
-                    elif port_field == "port.dst":
-                        p = sess.get("destination", {}).get("port")
-                        if p is not None:
-                            ports.append(p)
-                    elif port_field == "port.src":
-                        p = sess.get("source", {}).get("port")
-                        if p is not None:
-                            ports.append(p)
-                    else:
-                        p = sess.get(port_field)
-                        if p is not None:
-                            ports = [p] if not isinstance(p, list) else p
-
-                    for p in ports:
-                        if p is not None:
-                            port_counts[int(p)] = port_counts.get(int(p), 0) + 1
-
-                ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
-                unexpected = [(p, c) for p, c in ports_sorted
-                              if p not in expected_ports and p < 49152]
-                flagged = len(unexpected) > 0 if expected_ports else False
-
-                results.append({
-                    "pattern": pattern,
-                    "type": pat_type,
-                    "expected_ports": sorted(expected_ports),
-                    "matched_sessions": matched,
-                    "ports": [{"port": p, "count": c} for p, c in ports_sorted],
-                    "unexpected_ports": [{"port": p, "count": c} for p, c in unexpected],
-                    "flagged": flagged,
-                })
-
-            if cleanup:
-                _delete_hunt(cfg, hunt_id)
-
-        except Exception as e:
-            results.append({
-                "pattern": pattern,
-                "type": pat_type,
-                "expected_ports": sorted(expected_ports) if expected_ports else [],
-                "error": str(e),
-            })
-
-        if progress:
-            progress(progress_offset + i + 1, progress_total + total, f"pattern: {pattern[:20]}")
-
-    return {
-        "patterns": results,
-        "total": len(patterns),
-        "flagged": sum(1 for r in results if r.get("flagged")),
-    }
-
-
-# Legacy wrappers for backwards compatibility
-def do_port_scan_sig_to_port(cfg, progress=None):
-    """[DEPRECATED] Use do_port_scan_protocol_anomaly instead."""
-    result = do_port_scan_protocol_anomaly(cfg, progress)
-    # Convert to old format
-    sv = result.get("signature_view", {})
-    return {
-        "mode":                   "sig_to_port",
-        "signature_field":        result.get("signature_field"),
-        "port_field":             result.get("port_field"),
-        "signatures":             sv.get("signatures", []),
-        "total_signatures_seen":  sv.get("total_seen", 0),
-        "eligible_signatures":    sv.get("eligible", 0),
-        "truncated":              sv.get("truncated", False),
-        "ports_queried":          result.get("ports_queried", 0),
-        "thresholds":             result.get("thresholds", {}),
-        "errors":                 result.get("errors"),
-    }
-
-
 def do_port_scan_port_to_sig(cfg, progress=None):
-    """[DEPRECATED] Use do_port_scan_protocol_anomaly instead."""
-    result = do_port_scan_protocol_anomaly(cfg, progress)
-    pv = result.get("port_view", {})
+    """
+    Mode 2: For each port in cfg['ports_to_check'], fetch the distribution of
+    cfg['signature_field'] on that port, and compare against expected
+    signatures.
+    """
+    sig_field  = cfg.get("signature_field") or "protocols"
+    port_field = cfg.get("port_field") or "port"
+    ports      = cfg.get("ports_to_check") or list(PORT_EXPECTATIONS_DEFAULT.keys())
+    expectations = cfg.get("port_expectations") or PORT_EXPECTATIONS_DEFAULT
+    max_other  = int(cfg.get("max_other_sigs", 20))
+
+    _ = _time_params(cfg)
+    base_expr = _build_expr(cfg)
+
+    def one(port):
+        try:
+            pivot = f'{port_field} == {port}'   # ports are numeric in Arkime
+            full  = f'{pivot} && {base_expr}' if base_expr else pivot
+            sig_raw = _fetch_unique(cfg, sig_field, full)
+            total = sum(c for _, c in sig_raw)
+            expected = set(expectations.get(str(port), []))
+
+            # Split into "matches expectation" and "unexpected"
+            matches   = []
+            unexpected = []
+            for sig, count in sig_raw:
+                # A session's `protocols` field is a comma-joined list; treat
+                # each token individually if we're keying on protocols.
+                tokens = [t.strip().lower() for t in str(sig).split(",")] if sig_field == "protocols" else [str(sig).lower()]
+                if expected and any(t in expected for t in tokens):
+                    matches.append({"signature": sig, "count": count})
+                else:
+                    unexpected.append({"signature": sig, "count": count})
+
+            unexpected_total = sum(u["count"] for u in unexpected)
+            flagged = bool(expected) and unexpected_total > 0
+
+            return {
+                "port":             port,
+                "expected":         sorted(expected) if expected else [],
+                "total":            total,
+                "matches":          matches[:max_other],
+                "unexpected":       unexpected[:max_other],
+                "unexpected_total": unexpected_total,
+                "unexpected_unique": len(unexpected),
+                "flagged":          flagged,
+            }
+        except Exception as e:
+            return {"port": port, "error": str(e)}
+
+    workers = min(len(ports), int(cfg.get("max_workers", 6)))
+    results = []
+    done = 0
+    total_n = len(ports)
+    if progress:
+        progress(0, total_n, None)
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = [ex.submit(one, p) for p in ports]
+        for fut in as_completed(futures):
+            r = fut.result()
+            results.append(r)
+            done += 1
+            if progress:
+                progress(done, total_n, str(r.get("port")))
+
+    # Sort flagged ports first, then by port number
+    def _port_key(r):
+        try:   return int(r.get("port"))
+        except Exception: return 99999
+    results.sort(key=lambda r: (0 if r.get("flagged") else 1, _port_key(r)))
+
     return {
         "mode":            "port_to_sig",
-        "signature_field": result.get("signature_field"),
-        "port_field":      result.get("port_field"),
-        "ports":           pv.get("ports", []),
+        "signature_field": sig_field,
+        "port_field":      port_field,
+        "ports":           results,
     }
 
 
@@ -1217,20 +1118,130 @@ def _delete_hunt(cfg, hunt_id):
 
 
 def do_port_scan_byte_pattern(cfg, progress=None):
-    """[DEPRECATED] Use do_port_scan_protocol_anomaly with patterns instead."""
+    """
+    Mode 4: Search for byte patterns in raw payloads using Hunt API,
+    then check which ports those sessions used vs. expected ports.
+
+    cfg keys:
+      patterns: list of {pattern, type ('hex'|'ascii'), expected_ports: [int, ...]}
+      port_field: 'port' (both), 'port.dst', or 'port.src'
+      cleanup_hunts: bool (default True) - delete hunts after completion
+      hunt_timeout: int (default 300) - max seconds to wait per hunt
+    """
     patterns = cfg.get("patterns") or []
     if not patterns:
         raise ValueError("No patterns provided")
 
+    port_field = cfg.get("port_field") or "port"
+    cleanup = cfg.get("cleanup_hunts", True)
+    hunt_timeout = int(cfg.get("hunt_timeout", 300))
+
     _ = _time_params(cfg)  # validate
-    bp = _run_byte_patterns(cfg, patterns, progress)
+
+    results = []
+    total = len(patterns)
+
+    for i, pat_cfg in enumerate(patterns):
+        pattern = pat_cfg.get("pattern", "").strip()
+        pat_type = pat_cfg.get("type", "hex").lower()
+        expected_ports = set(int(p) for p in pat_cfg.get("expected_ports", []))
+
+        if not pattern:
+            results.append({"pattern": pattern, "error": "Empty pattern"})
+            if progress:
+                progress(i + 1, total, pattern)
+            continue
+
+        search_type = "hex" if pat_type == "hex" else "ascii"
+
+        try:
+            hunt_name = f"luxray_byte_scan_{pattern[:20]}_{int(time.time())}"
+            hunt_id = _create_hunt(cfg, hunt_name, pattern, search_type)
+
+            hunt = _wait_for_hunt(cfg, hunt_id, max_wait=hunt_timeout)
+            matched = hunt.get("matchedSessions", 0)
+
+            if matched == 0:
+                results.append({
+                    "pattern": pattern,
+                    "type": pat_type,
+                    "expected_ports": sorted(expected_ports),
+                    "matched_sessions": 0,
+                    "ports": [],
+                    "unexpected_ports": [],
+                    "flagged": False,
+                })
+            else:
+                sessions = _get_hunt_sessions(cfg, hunt_id)
+                port_counts = {}
+                for sess in sessions:
+                    # Handle nested structure: source.port, destination.port
+                    ports = []
+                    if port_field == "port":
+                        # Check both src and dst ports
+                        p_dst = sess.get("destination", {}).get("port")
+                        p_src = sess.get("source", {}).get("port")
+                        if p_dst is not None:
+                            ports.append(p_dst)
+                        if p_src is not None:
+                            ports.append(p_src)
+                    elif port_field == "port.dst":
+                        p = sess.get("destination", {}).get("port")
+                        if p is not None:
+                            ports.append(p)
+                    elif port_field == "port.src":
+                        p = sess.get("source", {}).get("port")
+                        if p is not None:
+                            ports.append(p)
+                    else:
+                        # Try direct access
+                        p = sess.get(port_field)
+                        if p is not None:
+                            ports = [p] if not isinstance(p, list) else p
+
+                    for p in ports:
+                        if p is not None:
+                            port_counts[int(p)] = port_counts.get(int(p), 0) + 1
+
+                ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
+                # Only flag ports below the ephemeral range as unexpected
+                # Ephemeral ports (49152-65535) are typically random source ports
+                unexpected = [(p, c) for p, c in ports_sorted
+                              if p not in expected_ports and p < 49152]
+                flagged = len(unexpected) > 0 if expected_ports else False
+
+                results.append({
+                    "pattern": pattern,
+                    "type": pat_type,
+                    "expected_ports": sorted(expected_ports),
+                    "matched_sessions": matched,
+                    "ports": [{"port": p, "count": c} for p, c in ports_sorted],
+                    "unexpected_ports": [{"port": p, "count": c} for p, c in unexpected],
+                    "flagged": flagged,
+                })
+
+            if cleanup:
+                _delete_hunt(cfg, hunt_id)
+
+        except Exception as e:
+            results.append({
+                "pattern": pattern,
+                "type": pat_type,
+                "expected_ports": sorted(expected_ports) if expected_ports else [],
+                "error": str(e),
+            })
+
+        if progress:
+            progress(i + 1, total, pattern)
+
+    flagged_count = sum(1 for r in results if r.get("flagged"))
 
     return {
         "mode": "byte_pattern",
-        "port_field": cfg.get("port_field") or "port",
-        "patterns": bp.get("patterns", []),
-        "total_patterns": bp.get("total", 0),
-        "flagged_count": bp.get("flagged", 0),
+        "port_field": port_field,
+        "patterns": results,
+        "total_patterns": len(patterns),
+        "flagged_count": flagged_count,
     }
 
 
@@ -1239,17 +1250,9 @@ def do_port_scan_byte_pattern(cfg, progress=None):
 # ==============================================================================
 
 def _sig_to_port_as_baseline_data(scan_result):
-    """Reduce a scan to {signature: {port: count}}."""
+    """Reduce a mode-1 scan to {signature: {port: count}}."""
     out = {}
-    # Handle new protocol_anomaly format
-    if scan_result.get("mode") == "protocol_anomaly":
-        sv = scan_result.get("signature_view", {})
-        sigs = sv.get("signatures", [])
-    else:
-        # Legacy sig_to_port format
-        sigs = scan_result.get("signatures") or []
-
-    for s in sigs:
+    for s in scan_result.get("signatures") or []:
         if s.get("error"): continue
         out[s["signature"]] = {p["port"]: p["count"] for p in s.get("ports") or []}
     return out
@@ -1264,9 +1267,8 @@ def do_baseline_save(data):
     if not name:
         raise ValueError("Baseline name is required")
     scan = data.get("scan_result") or {}
-    mode = scan.get("mode")
-    if mode not in ("protocol_anomaly", "sig_to_port"):
-        raise ValueError("Only Protocol Anomaly scans can be saved as baselines")
+    if scan.get("mode") != "sig_to_port":
+        raise ValueError("Only mode 1 (signature → port) scans can be saved as baselines")
 
     built_from = data.get("built_from") or {}
     baseline = {
@@ -1315,7 +1317,7 @@ def do_baseline_delete(data):
 
 def do_baseline_compare(data):
     """
-    Compare a fresh scan against a saved baseline.
+    Compare a fresh mode-1 scan against a saved baseline.
     Returns per-signature diff with severity.
 
     Expects: {name, scan_result}
@@ -1327,9 +1329,8 @@ def do_baseline_compare(data):
         raise ValueError(f"Baseline not found: {name}")
     baseline = bl[name]
     scan = data.get("scan_result") or {}
-    mode = scan.get("mode")
-    if mode not in ("protocol_anomaly", "sig_to_port"):
-        raise ValueError("Comparison requires a Protocol Anomaly scan")
+    if scan.get("mode") != "sig_to_port":
+        raise ValueError("Comparison requires a mode 1 (signature → port) scan")
     if scan.get("signature_field") != baseline.get("signature_field"):
         raise ValueError(
             f"Signature field mismatch: scan uses '{scan.get('signature_field')}', "
@@ -1339,15 +1340,9 @@ def do_baseline_compare(data):
     bdata = baseline.get("data", {})
     diffs = []
 
-    # Get signatures from scan (handle both formats)
-    if mode == "protocol_anomaly":
-        scan_signatures = scan.get("signature_view", {}).get("signatures", [])
-    else:
-        scan_signatures = scan.get("signatures") or []
-
     # Signatures present in the new scan
     scan_sigs = set()
-    for s in scan_signatures:
+    for s in scan.get("signatures") or []:
         if s.get("error"): continue
         sig = s["signature"]
         scan_sigs.add(sig)
@@ -1741,10 +1736,6 @@ body.dark ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap}
 .card-sub{font-size:.72rem;color:var(--text-4);margin-top:2px;margin-bottom:8px}
 .btn-sm{padding:4px 8px;font-size:.7rem}
-.tab-bar{display:flex;gap:0;background:var(--surface-2);border-radius:6px;overflow:hidden;padding:4px}
-.tab-btn{padding:8px 16px;font-size:.8rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--text-3);border-radius:4px;transition:background .15s,color .15s}
-.tab-btn:hover{background:var(--surface);color:var(--text-2)}
-.tab-btn.active{background:var(--surface);color:#3b82f6;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .card-btns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 
 .stats{display:flex;background:var(--surface-2);border-radius:7px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border-2)}
@@ -2003,17 +1994,16 @@ tr.clean td{opacity:.75}
 
       <label>Mode</label>
       <select id="psMode" onchange="renderPortScanMode()">
-        <option value="protocol_anomaly">1 &mdash; Protocol Anomaly (signatures + ports + byte patterns)</option>
-        <option value="host_behavior">2 &mdash; Host Behavior (scan/beacon detection)</option>
+        <option value="sig_to_port">1 &mdash; Signature on unexpected port</option>
+        <option value="port_to_sig">2 &mdash; Unexpected protocol on known port</option>
+        <option value="host_diversity">3 &mdash; Host using many ports (scan/beacon)</option>
+        <option value="byte_pattern">4 &mdash; Byte pattern on unexpected port</option>
       </select>
 
-      <div id="psMode_protocol_anomaly">
-        <div style="font-size:.75rem;color:var(--text-3);margin-bottom:8px">
-          Analyzes signatures on ports from both perspectives: flags signatures appearing on unusual ports AND unexpected protocols on known ports.
-        </div>
-        <label>Signature field <span style="font-weight:normal;color:var(--text-3)">(group traffic by this field)</span></label>
+      <div id="psMode_sig_to_port">
+        <label>Grouping field <span style="font-weight:normal;color:var(--text-3)">(group traffic by this field)</span></label>
         <div class="srch-wrap" data-mode="ps-sig1">
-          <input type="text" id="psSigField" class="srch-inp" value="http.useragent" placeholder="Select or search..."
+          <input type="text" id="psSigField" class="srch-inp" value="tls.ja3" placeholder="Select or search..."
                  oninput="_srchRender(this,arkimeFields,this.value)"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)">
@@ -2042,47 +2032,34 @@ tr.clean td{opacity:.75}
             <input type="number" id="psOutlierMax" value="3" min="1">
           </div>
         </div>
-
-        <details style="margin-top:12px">
-          <summary style="cursor:pointer;font-size:.8rem;color:var(--text-2)">Port expectations (for port-centric view)</summary>
-          <div style="margin-top:8px">
-            <label class="no-mt">Expected signatures <span style="font-weight:400;color:#9ca3af">(port: sig1,sig2)</span></label>
-            <textarea id="psExpectations" rows="4" placeholder="53: dns&#10;443: tls,http&#10;80: http,tcp"></textarea>
-            <div class="btn-row" style="margin-top:4px">
-              <button class="btn-outline" onclick="loadDefaultExpectations()" style="flex:1">Load IANA defaults</button>
-            </div>
-          </div>
-        </details>
-
-        <details style="margin-top:12px">
-          <summary style="cursor:pointer;font-size:.8rem;color:var(--text-2)">Byte pattern hunting (optional)</summary>
-          <div style="margin-top:8px">
-            <label class="no-mt">Byte patterns</label>
-            <div id="bytePatternList"></div>
-            <div class="btn-row" style="margin-top:8px">
-              <button class="btn-outline" style="flex:1" onclick="addBytePattern()">+ Add pattern</button>
-            </div>
-            <div class="row2" style="margin-top:8px">
-              <div>
-                <label class="no-mt">Max packets/session</label>
-                <select id="psHuntMaxPackets">
-                  <option value="50">50</option>
-                  <option value="500">500</option>
-                  <option value="5000">5,000</option>
-                  <option value="10000" selected>10,000</option>
-                  <option value="100000">100,000</option>
-                </select>
-              </div>
-              <div>
-                <label class="no-mt">Hunt timeout (sec)</label>
-                <input type="number" id="psHuntTimeout" value="300" min="30">
-              </div>
-            </div>
-          </div>
-        </details>
+        <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
+          Groups by field value (e.g. user agent, JA3, protocol), finds which port each
+          value normally uses, then flags when it appears on unusual ports.
+        </div>
       </div>
 
-      <div id="psMode_host_behavior" style="display:none">
+      <div id="psMode_port_to_sig" style="display:none">
+        <label>Signature field</label>
+        <div class="srch-wrap" data-mode="ps-sig2">
+          <input type="text" id="psSigField2" class="srch-inp" value="protocols" placeholder="Select or search..."
+                 oninput="_srchRender(this,arkimeFields,this.value)"
+                 onfocus="_srchRender(this,arkimeFields,this.value)"
+                 onblur="_srchClose(this)">
+          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
+          <div class="srch-list"></div>
+        </div>
+        <label>Port field</label>
+        <input type="text" id="psPortField2" value="port">
+        <label>Ports to check <span style="font-weight:400;color:#9ca3af">(one per line)</span></label>
+        <textarea id="psPortsList" rows="4" placeholder="53&#10;80&#10;443&#10;22"></textarea>
+        <div class="btn-row" style="margin-top:4px">
+          <button class="btn-outline" onclick="loadDefaultPorts()" style="flex:1">Load default port list</button>
+        </div>
+        <label>Expected signatures <span style="font-weight:400;color:#9ca3af">(port: sig1,sig2)</span></label>
+        <textarea id="psExpectations" rows="5" placeholder="53: dns&#10;443: tls,http&#10;80: http,tcp"></textarea>
+      </div>
+
+      <div id="psMode_host_diversity" style="display:none">
         <div style="font-size:.75rem;color:var(--text-3);margin-bottom:8px">
           Checks both source and destination IPs for scanning/beaconing behavior.
         </div>
@@ -2133,9 +2110,55 @@ tr.clean td{opacity:.75}
         </div>
       </div>
 
-      <!-- Baseline (protocol_anomaly mode only) -->
+      <div id="psMode_byte_pattern" style="display:none">
+        <label>Port field</label>
+        <select id="psPortField4">
+          <option value="port" selected>port (src or dst)</option>
+          <option value="port.dst">port.dst</option>
+          <option value="port.src">port.src</option>
+        </select>
+        <label>Byte patterns</label>
+        <div id="bytePatternList"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn-outline" style="flex:1" onclick="addBytePattern()">+ Add pattern</button>
+        </div>
+        <div class="row2" style="margin-top:8px">
+          <div>
+            <label class="no-mt">Max packets/session</label>
+            <select id="psHuntMaxPackets">
+              <option value="50">50</option>
+              <option value="500">500</option>
+              <option value="5000">5,000</option>
+              <option value="10000" selected>10,000</option>
+              <option value="100000">100,000</option>
+              <option value="1000000">1,000,000</option>
+              <option value="10000000">10,000,000 (admin)</option>
+            </select>
+          </div>
+          <div>
+            <label class="no-mt">Hunt timeout (sec)</label>
+            <input type="number" id="psHuntTimeout" value="300" min="30">
+          </div>
+        </div>
+        <div class="row2" style="margin-top:8px">
+          <div>
+            <label class="no-mt">Cleanup hunts</label>
+            <select id="psCleanupHunts">
+              <option value="true" selected>Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
+        <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
+          Searches raw packet payloads using Arkime Hunt API.<br>
+          Flags when a byte pattern appears on an unexpected port.
+        </div>
+      </div>
+
+      <!-- Baseline (mode 1 only) -->
       <div id="psBaselineBlock">
-        <label style="margin-top:12px">Baseline <span style="font-weight:400;color:#9ca3af">(protocol anomaly only)</span></label>
+        <label style="margin-top:12px">Baseline <span style="font-weight:400;color:#9ca3af">(mode 1 only)</span></label>
         <div class="preset-row">
           <select id="psBaselineSelect">
             <option value="">— none, just run the scan —</option>
@@ -3728,9 +3751,11 @@ function getBytePatterns() {
 
 function renderPortScanMode() {
   const mode = document.getElementById("psMode").value;
-  document.getElementById("psMode_protocol_anomaly").style.display = mode === "protocol_anomaly" ? "" : "none";
-  document.getElementById("psMode_host_behavior").style.display    = mode === "host_behavior"    ? "" : "none";
-  document.getElementById("psBaselineBlock").style.display         = mode === "protocol_anomaly" ? "" : "none";
+  document.getElementById("psMode_sig_to_port").style.display   = mode === "sig_to_port"   ? "" : "none";
+  document.getElementById("psMode_port_to_sig").style.display   = mode === "port_to_sig"   ? "" : "none";
+  document.getElementById("psMode_host_diversity").style.display= mode === "host_diversity"? "" : "none";
+  document.getElementById("psMode_byte_pattern").style.display  = mode === "byte_pattern"  ? "" : "none";
+  document.getElementById("psBaselineBlock").style.display      = mode === "sig_to_port"   ? "" : "none";
 
   // Restore cached results for this mode if available
   const cached = portScanCache[mode];
@@ -3748,8 +3773,11 @@ function syncPsCustom(selId, customId) {
 
 function psSignatureField() {
   const mode = document.getElementById("psMode").value;
-  if (mode === "protocol_anomaly") {
+  if (mode === "sig_to_port") {
     return document.getElementById("psSigField").value.trim();
+  }
+  if (mode === "port_to_sig") {
+    return document.getElementById("psSigField2").value.trim();
   }
   return "";
 }
@@ -3772,16 +3800,17 @@ function parseExpectations() {
   return out;
 }
 
-async function loadDefaultExpectations() {
+async function loadDefaultPorts() {
   try {
     const res = await fetch("/api/port-expectations-default");
     if (!res.ok) return;
     const data = await res.json();
     const ex = data.expectations || {};
+    document.getElementById("psPortsList").value  = Object.keys(ex).sort((a,b)=>parseInt(a)-parseInt(b)).join("\n");
     document.getElementById("psExpectations").value = Object.entries(ex)
       .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
       .map(([p, sigs]) => `${p}: ${sigs.join(",")}`).join("\n");
-    toast("IANA defaults loaded", "ok");
+    toast("Default ports loaded", "ok");
   } catch(e) { toast("Failed to load defaults: " + e.message, "err"); }
 }
 
@@ -3789,21 +3818,19 @@ function getPortScanCfg() {
   const base = getConfig();
   const mode = document.getElementById("psMode").value;
   const out = {...base, mode};
-  if (mode === "protocol_anomaly") {
-    out.signature_field   = psSignatureField();
-    out.port_field        = document.getElementById("psPortField").value.trim() || "port";
-    out.min_sessions      = parseInt(document.getElementById("psMinSessions").value) || 10;
-    out.max_sigs          = parseInt(document.getElementById("psMaxSigs").value) || 100;
-    out.dominance         = parseFloat(document.getElementById("psDominance").value) || 0.9;
-    out.outlier_max       = parseInt(document.getElementById("psOutlierMax").value) || 3;
+  if (mode === "sig_to_port") {
+    out.signature_field = psSignatureField();
+    out.port_field      = document.getElementById("psPortField").value.trim() || "port";
+    out.min_sessions    = parseInt(document.getElementById("psMinSessions").value) || 10;
+    out.max_sigs        = parseInt(document.getElementById("psMaxSigs").value) || 100;
+    out.dominance       = parseFloat(document.getElementById("psDominance").value) || 0.9;
+    out.outlier_max     = parseInt(document.getElementById("psOutlierMax").value) || 3;
+  } else if (mode === "port_to_sig") {
+    out.signature_field   = psSignatureField() || "protocols";
+    out.port_field        = document.getElementById("psPortField2").value.trim() || "port";
+    out.ports_to_check    = parsePortsList();
     out.port_expectations = parseExpectations();
-    out.patterns          = getBytePatterns();
-    if (out.patterns.length) {
-      out.hunt_max_packets = parseInt(document.getElementById("psHuntMaxPackets").value) || 10000;
-      out.hunt_timeout     = parseInt(document.getElementById("psHuntTimeout").value) || 300;
-      out.cleanup_hunts    = true;
-    }
-  } else if (mode === "host_behavior") {
+  } else if (mode === "host_diversity") {
     out.port_field            = document.getElementById("psPortField3").value.trim() || "port";
     out.signature_field       = document.getElementById("psPinField").value.trim();
     out.pinned_signature_value= document.getElementById("psPinValue").value;
@@ -3811,6 +3838,12 @@ function getPortScanCfg() {
     out.min_distinct_ports    = parseInt(document.getElementById("psMinDistinctPorts").value) || 10;
     out.port_ratio_threshold  = parseFloat(document.getElementById("psPortRatio").value) || 0.4;
     out.max_hosts             = parseInt(document.getElementById("psMaxHosts").value) || 100;
+  } else if (mode === "byte_pattern") {
+    out.port_field       = document.getElementById("psPortField4").value.trim() || "port";
+    out.patterns         = getBytePatterns();
+    out.hunt_max_packets = parseInt(document.getElementById("psHuntMaxPackets").value) || 10000;
+    out.hunt_timeout     = parseInt(document.getElementById("psHuntTimeout").value) || 300;
+    out.cleanup_hunts    = document.getElementById("psCleanupHunts").value === "true";
   }
   return out;
 }
@@ -3820,7 +3853,9 @@ let psXhr = null;  // track current port scan request
 async function runPortScan() {
   const cfg = getPortScanCfg();
   if (!cfg.url) { toast("Please enter an Arkime URL.", "err"); return; }
-  if (cfg.mode === "protocol_anomaly" && !cfg.signature_field) { toast("Signature field is required", "err"); return; }
+  if (cfg.mode === "sig_to_port" && !cfg.signature_field) { toast("Signature field is required", "err"); return; }
+  if (cfg.mode === "port_to_sig" && !cfg.ports_to_check.length) { toast("Add at least one port to check", "err"); return; }
+  if (cfg.mode === "byte_pattern" && !cfg.patterns.length) { toast("Add at least one byte pattern", "err"); return; }
 
   const panel = document.getElementById("results");
   panel.innerHTML = `
@@ -3843,8 +3878,8 @@ async function runPortScan() {
     // Cache result for this mode
     portScanCache[cfg.mode] = { data, cfg };
 
-    // Protocol anomaly mode: if a baseline is selected, compare
-    if (cfg.mode === "protocol_anomaly") {
+    // Mode 1: if a baseline is selected, compare
+    if (cfg.mode === "sig_to_port") {
       lastPortScan = data;
       const baselineName = document.getElementById("psBaselineSelect").value;
       if (baselineName) {
@@ -3968,11 +4003,9 @@ function renderPortScanResults(panel, data, cfg) {
   <div id="baselineCmpOut"></div>`;
 
   let body = "";
-  if (mode === "protocol_anomaly")     body = renderProtocolAnomaly(data, cfg);
-  else if (mode === "host_behavior" || mode === "host_diversity") body = renderHostDiversity(data, cfg);
-  // Legacy mode names
-  else if (mode === "sig_to_port")     body = renderSigToPort(data, cfg);
+  if (mode === "sig_to_port")          body = renderSigToPort(data, cfg);
   else if (mode === "port_to_sig")     body = renderPortToSig(data, cfg);
+  else if (mode === "host_diversity")  body = renderHostDiversity(data, cfg);
   else if (mode === "byte_pattern")    body = renderBytePattern(data, cfg);
   else body = `<div class="err-card">Unknown mode: ${esc(mode)}</div>`;
 
@@ -3980,216 +4013,7 @@ function renderPortScanResults(panel, data, cfg) {
   updateBulkBar();
 }
 
-// Protocol Anomaly renderer (merged mode)
-function renderProtocolAnomaly(data, cfg) {
-  const sv = data.signature_view || {};
-  const pv = data.port_view || {};
-  const bp = data.byte_patterns || null;
-
-  const sigs = sv.signatures || [];
-  const sigFlagged = sigs.filter(s => s.flagged);
-  const sigClean = sigs.filter(s => !s.flagged && !s.error);
-
-  const ports = pv.ports || [];
-  const portFlagged = ports.filter(p => p.flagged);
-  const portClean = ports.filter(p => !p.flagged && !p.error);
-
-  const patterns = bp ? (bp.patterns || []) : [];
-  const patFlagged = patterns.filter(p => p.flagged);
-  const patClean = patterns.filter(p => !p.flagged && !p.error);
-
-  let html = `<div class="card">
-    <div class="card-top">
-      <div>
-        <div class="card-title">Protocol Anomaly Scan</div>
-        <div class="card-sub">signature field: <code>${esc(data.signature_field)}</code>, port field: <code>${esc(data.port_field)}</code>, ports queried: ${data.ports_queried || 0}</div>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="stat-val">${fmt(sv.total_seen || 0)}</div><div class="stat-lbl">Signatures seen</div></div>
-      <div class="stat"><div class="stat-val">${fmt(sv.eligible || 0)}</div><div class="stat-lbl">Scanned</div></div>
-      <div class="stat"><div class="stat-val" style="color:#dc2626">${fmt(sigFlagged.length + portFlagged.length + patFlagged.length)}</div><div class="stat-lbl">Total flagged</div></div>
-    </div>`;
-
-  if (data.warning) {
-    html += `<div class="err-card" style="border-left-color:#f59e0b">${esc(data.warning)}</div>`;
-  }
-  if (data.errors && data.errors.length) {
-    html += `<div class="err-card" style="border-left-color:#f59e0b">Query errors:<br>${data.errors.map(e => esc(e)).join("<br>")}</div>`;
-  }
-  html += `</div>`;
-
-  // Tabs for switching views
-  html += `<div class="card" style="padding:0">
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchPsTab(this, 'sigView')">Signature View (${sigFlagged.length} flagged)</button>
-      <button class="tab-btn" onclick="switchPsTab(this, 'portView')">Port View (${portFlagged.length} flagged)</button>
-      ${bp ? `<button class="tab-btn" onclick="switchPsTab(this, 'byteView')">Byte Patterns (${patFlagged.length} flagged)</button>` : ""}
-    </div>
-  </div>`;
-
-  // Signature view tab
-  html += `<div id="sigView" class="ps-tab-content">`;
-  if (sigFlagged.length) {
-    html += renderSigTable(sigFlagged, "Flagged signatures", true, data.port_field, false, "flaggedSigs");
-  }
-  if (sigClean.length) {
-    html += renderSigTable(sigClean, `Clean signatures (${sigClean.length})`, false, data.port_field, true, "cleanSigs");
-  }
-  if (!sigs.length) {
-    html += `<div class="card" style="text-align:center;color:var(--text-3)">No signatures analyzed</div>`;
-  }
-  html += `</div>`;
-
-  // Port view tab
-  html += `<div id="portView" class="ps-tab-content" style="display:none">`;
-  if (portFlagged.length) {
-    html += renderPortTable(portFlagged, "Flagged ports", "flaggedPorts", true, data);
-  }
-  if (portClean.length) {
-    html += renderPortTable(portClean, `Clean ports (${portClean.length})`, "cleanPorts", false, data);
-  }
-  if (!ports.length) {
-    html += `<div class="card" style="text-align:center;color:var(--text-3)">No ports analyzed</div>`;
-  }
-  html += `</div>`;
-
-  // Byte patterns tab
-  if (bp) {
-    html += `<div id="byteView" class="ps-tab-content" style="display:none">`;
-    if (patFlagged.length) {
-      html += renderPatternTable(patFlagged, `Flagged patterns (${patFlagged.length})`, "flaggedPatterns", true);
-    }
-    if (patClean.length) {
-      html += renderPatternTable(patClean, `Clean patterns (${patClean.length})`, "cleanPatterns", false);
-    }
-    if (!patterns.length) {
-      html += `<div class="card" style="text-align:center;color:var(--text-3)">No byte patterns configured</div>`;
-    }
-    html += `</div>`;
-  }
-
-  return html;
-}
-
-function switchPsTab(btn, tabId) {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  document.querySelectorAll(".ps-tab-content").forEach(t => t.style.display = "none");
-  document.getElementById(tabId).style.display = "";
-}
-
-function renderPortTable(arr, tableTitle, tableId, isOpen, data) {
-  const withSessions = arr.filter(p => (p.total || 0) > 0);
-  const zeroSessions = arr.filter(p => (p.total || 0) === 0);
-
-  const buildRows = (arr) => arr.map(p => {
-    const unexp = (p.unexpected || []).map(u => {
-      const ri = rowData.length;
-      rowData.push({field: data.signature_field, value: u.signature, count: u.count, bucket: "ps_unexpected", pin_field: data.port_field, pin_value: String(p.port)});
-      return `<span class="port-chip out">
-        <span class="port-val" title="${u.count} sessions">${esc(truncate(u.signature, 40))}</span>
-        <span class="port-count">${u.count}</span>
-        <button class="chip-act" onclick="psPivotUnexpected(${ri})" title="Correlate">&#x21C4;</button>
-        <button class="chip-act" onclick="psSessionsUnexpected(${ri})" title="Sessions">&#x2261;</button>
-      </span>`;
-    }).join("") || `<span style="color:var(--text-4);font-size:.72rem">—</span>`;
-
-    const matched = (p.matches || []).map(m =>
-      `<span class="port-chip dom"><span class="port-val">${esc(truncate(m.signature, 40))}</span> <span class="port-count">${m.count}</span></span>`
-    ).join("") || `<span style="color:var(--text-4);font-size:.72rem">—</span>`;
-
-    return `<tr class="${p.flagged?"":"clean"}" data-sessions="${p.total || 0}">
-      <td class="num" style="font-weight:700">${esc(p.port)}</td>
-      <td class="num r">${fmt(p.total || 0)}</td>
-      <td style="font-size:.73rem">${p.expected.length ? p.expected.map(x=>`<code>${esc(x)}</code>`).join(" ") : '<span style="color:var(--text-4)">no expectation</span>'}</td>
-      <td style="max-width:300px">${matched}</td>
-      <td style="max-width:360px">${unexp}</td>
-    </tr>`;
-  }).join("");
-
-  let thtml = `<details class="card"${isOpen ? " open" : ""}>
-    <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(tableTitle)}</summary>
-    <div style="margin-top:12px">`;
-
-  if (withSessions.length) {
-    thtml += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
-      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
-      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
-    </div>
-    <table id="${tableId}">
-      <thead><tr><th>Port</th><th class="r">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead>
-      <tbody>${buildRows(withSessions)}</tbody>
-    </table>`;
-  }
-
-  if (zeroSessions.length) {
-    thtml += `<details style="margin-top:12px">
-      <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} ports with 0 sessions</summary>
-      <table style="margin-top:8px">
-        <thead><tr><th>Port</th><th class="r">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead>
-        <tbody>${buildRows(zeroSessions)}</tbody>
-      </table>
-    </details>`;
-  }
-
-  thtml += `</div></details>`;
-  return thtml;
-}
-
-function renderPatternTable(arr, tableTitle, tableId, isOpen) {
-  const withSessions = arr.filter(p => (p.matched_sessions || 0) > 0);
-  const zeroSessions = arr.filter(p => (p.matched_sessions || 0) === 0);
-
-  const buildRow = (p) => {
-    const portsHtml = (p.ports || []).slice(0, 10).map(pt => {
-      const isUnexpected = p.expected_ports && p.expected_ports.length && !p.expected_ports.includes(pt.port);
-      return `<span class="port-chip${isUnexpected ? " flagged" : ""}"><span class="port-val">${esc(pt.port)}</span> <span class="port-count">${pt.count}</span></span>`;
-    }).join("");
-    const expectedStr = (p.expected_ports || []).join(", ") || "(any)";
-    const unexpectedPorts = (p.unexpected_ports || []).map(u => u.port).join(", ");
-    return `<tr class="${p.flagged ? "" : "clean"}" data-sessions="${p.matched_sessions || 0}">
-      <td><code style="font-size:.8rem">${esc(p.pattern)}</code></td>
-      <td>${esc(p.type)}</td>
-      <td class="num r">${fmt(p.matched_sessions || 0)}</td>
-      <td style="font-size:.75rem">${esc(expectedStr)}</td>
-      <td style="max-width:300px">${portsHtml}</td>
-      <td style="color:#dc2626;font-size:.75rem">${unexpectedPorts ? esc(unexpectedPorts) : "-"}</td>
-    </tr>`;
-  };
-
-  let thtml = `<details class="card"${isOpen ? " open" : ""}>
-    <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(tableTitle)}</summary>
-    <div style="margin-top:12px">`;
-
-  if (withSessions.length) {
-    thtml += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
-      <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
-      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
-      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
-    </div>
-    <table id="${tableId}">
-      <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
-      <tbody>${withSessions.map(buildRow).join("")}</tbody>
-    </table>`;
-  }
-
-  if (zeroSessions.length) {
-    thtml += `<details style="margin-top:12px">
-      <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} patterns with 0 sessions</summary>
-      <table style="margin-top:8px">
-        <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
-        <tbody>${zeroSessions.map(buildRow).join("")}</tbody>
-      </table>
-    </details>`;
-  }
-
-  thtml += `</div></details>`;
-  return thtml;
-}
-
-// Mode 1 renderer (legacy)
+// Mode 1 renderer
 function renderSigToPort(data, cfg) {
   const sigs = data.signatures || [];
   const flagged = sigs.filter(s => s.flagged);
@@ -4199,7 +4023,7 @@ function renderSigToPort(data, cfg) {
   let html = `<div class="card">
     <div class="card-top">
       <div>
-        <div class="card-title">Signature &rarr; Port (legacy mode 1)</div>
+        <div class="card-title">Signature &rarr; Port (mode 1)</div>
         <div class="card-sub">signature field: <code>${esc(data.signature_field)}</code>, port field: <code>${esc(data.port_field)}</code>, ports queried: ${data.ports_queried || 0}</div>
       </div>
     </div>
@@ -4644,8 +4468,8 @@ function updateBaselineInfo() {
 }
 
 async function saveBaselineFromLastScan() {
-  if (!lastPortScan || (lastPortScan.mode !== "protocol_anomaly" && lastPortScan.mode !== "sig_to_port")) {
-    toast("Run a Protocol Anomaly scan first, then save it as baseline", "err");
+  if (!lastPortScan || lastPortScan.mode !== "sig_to_port") {
+    toast("Run a mode-1 port scan first, then save it as baseline", "err");
     return;
   }
   const name = prompt("Name this baseline:\n(tip: include the date/segment, e.g. 'dmz-clean-apr-2026')");
@@ -4735,7 +4559,7 @@ async function runBaselineCompare(name, scanResult) {
 
 function downloadPortScanReport() {
   // Find the most recent scan from cache
-  const modes = ["protocol_anomaly", "host_behavior", "sig_to_port", "port_to_sig", "host_diversity", "byte_pattern"];
+  const modes = ["sig_to_port", "port_to_sig", "host_diversity", "byte_pattern"];
   let data = null;
   let cfg = null;
   for (const m of modes) {
@@ -4790,118 +4614,7 @@ function downloadPortScanReport() {
   }
   html += '</div>';
 
-  if (mode === "protocol_anomaly") {
-    const sv = data.signature_view || {};
-    const pv = data.port_view || {};
-    const bp = data.byte_patterns || null;
-    const sigs = sv.signatures || [];
-    const sigFlagged = sigs.filter(s => s.flagged);
-    const sigClean = sigs.filter(s => !s.flagged);
-    const ports = pv.ports || [];
-    const portFlagged = ports.filter(p => p.flagged);
-    const portClean = ports.filter(p => !p.flagged);
-    const patterns = bp ? (bp.patterns || []) : [];
-    const patFlagged = patterns.filter(p => p.flagged);
-    const patClean = patterns.filter(p => !p.flagged && !p.error);
-
-    html += '<div class="summary">';
-    html += '<div class="stat"><div class="stat-val">' + fmt(sv.total_seen || 0) + '</div><div class="stat-lbl">Signatures Seen</div></div>';
-    html += '<div class="stat"><div class="stat-val">' + fmt(sv.eligible || 0) + '</div><div class="stat-lbl">Scanned</div></div>';
-    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(sigFlagged.length + portFlagged.length + patFlagged.length) + '</div><div class="stat-lbl">Total Flagged</div></div>';
-    html += '</div>';
-
-    // Signature View
-    html += '<h2>Signature View</h2>';
-    if (sigFlagged.length) {
-      html += '<div class="section"><h3>Flagged Signatures (' + sigFlagged.length + ')</h3>';
-      html += '<table><thead><tr><th>Signature</th><th class="num">Sessions</th><th>Dominant Port</th><th class="num">Distinct Ports</th><th>Outlier Ports</th></tr></thead><tbody>';
-      for (const s of sigFlagged) {
-        const outliers = (s.outliers || []).map(o => '<span class="port-chip unexpected">' + o.port + ' (' + o.count + ')</span>').join(' ');
-        html += '<tr class="flagged"><td class="val">' + esc(s.signature) + '</td><td class="num">' + fmt(s.total) + '</td><td>' + (s.dominant_port || '-') + ' (' + ((s.dominant_share||0)*100).toFixed(1) + '%)</td><td class="num">' + fmt(s.distinct_ports) + '</td><td>' + (outliers || '-') + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-    if (sigClean.length) {
-      html += '<div class="section"><h3>Clean Signatures (' + sigClean.length + ')</h3>';
-      html += '<table><thead><tr><th>Signature</th><th class="num">Sessions</th><th>Dominant Port</th><th class="num">Distinct Ports</th></tr></thead><tbody>';
-      for (const s of sigClean) {
-        html += '<tr><td class="val">' + esc(s.signature) + '</td><td class="num">' + fmt(s.total) + '</td><td>' + (s.dominant_port || '-') + ' (' + ((s.dominant_share||0)*100).toFixed(1) + '%)</td><td class="num">' + fmt(s.distinct_ports) + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-
-    // Port View
-    html += '<h2>Port View</h2>';
-    if (portFlagged.length) {
-      html += '<div class="section"><h3>Flagged Ports (' + portFlagged.length + ')</h3>';
-      html += '<table><thead><tr><th>Port</th><th class="num">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead><tbody>';
-      for (const p of portFlagged) {
-        const matching = (p.matches || []).map(m => '<span class="port-chip">' + esc(m.signature) + ' (' + m.count + ')</span>').join(' ');
-        const unexpected = (p.unexpected || []).map(u => '<span class="port-chip unexpected">' + esc(u.signature) + ' (' + u.count + ')</span>').join(' ');
-        html += '<tr class="flagged"><td>' + p.port + '</td><td class="num">' + fmt(p.total) + '</td><td>' + (p.expected || []).join(', ') + '</td><td>' + (matching || '-') + '</td><td>' + (unexpected || '-') + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-    if (portClean.length) {
-      html += '<div class="section"><h3>Clean Ports (' + portClean.length + ')</h3>';
-      html += '<table><thead><tr><th>Port</th><th class="num">Sessions</th><th>Expected</th><th>Matching</th></tr></thead><tbody>';
-      for (const p of portClean) {
-        const matching = (p.matches || []).map(m => '<span class="port-chip">' + esc(m.signature) + ' (' + m.count + ')</span>').join(' ');
-        html += '<tr><td>' + p.port + '</td><td class="num">' + fmt(p.total) + '</td><td>' + (p.expected || []).join(', ') + '</td><td>' + (matching || '-') + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-
-    // Byte Patterns (if any)
-    if (bp && patterns.length) {
-      html += '<h2>Byte Patterns</h2>';
-      if (patFlagged.length) {
-        html += '<div class="section"><h3>Flagged Patterns (' + patFlagged.length + ')</h3>';
-        html += '<table><thead><tr><th>Pattern</th><th>Type</th><th class="num">Sessions</th><th>Expected Ports</th><th>Unexpected</th></tr></thead><tbody>';
-        for (const p of patFlagged) {
-          const unexpPorts = (p.unexpected_ports || []).slice(0, 10).map(pt => '<span class="port-chip unexpected">' + pt.port + ' (' + pt.count + ')</span>').join(' ');
-          html += '<tr class="flagged"><td class="val">' + esc(p.pattern) + '</td><td>' + esc(p.type) + '</td><td class="num">' + fmt(p.matched_sessions) + '</td><td>' + (p.expected_ports || []).join(', ') + '</td><td>' + unexpPorts + '</td></tr>';
-        }
-        html += '</tbody></table></div>';
-      }
-      if (patClean.length) {
-        html += '<div class="section"><h3>Clean Patterns (' + patClean.length + ')</h3>';
-        html += '<table><thead><tr><th>Pattern</th><th>Type</th><th class="num">Sessions</th><th>Expected Ports</th></tr></thead><tbody>';
-        for (const p of patClean) {
-          html += '<tr><td class="val">' + esc(p.pattern) + '</td><td>' + esc(p.type) + '</td><td class="num">' + fmt(p.matched_sessions) + '</td><td>' + (p.expected_ports || []).join(', ') + '</td></tr>';
-        }
-        html += '</tbody></table></div>';
-      }
-    }
-  } else if (mode === "host_behavior" || mode === "host_diversity") {
-    const hosts = data.hosts || [];
-    const flagged = hosts.filter(h => h.flagged);
-    const clean = hosts.filter(h => !h.flagged && !h.error);
-    html += '<div class="summary">';
-    html += '<div class="stat"><div class="stat-val">' + fmt(hosts.length) + '</div><div class="stat-lbl">Hosts Scanned</div></div>';
-    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(flagged.length) + '</div><div class="stat-lbl">Flagged</div></div>';
-    html += '<div class="stat"><div class="stat-val">' + fmt(clean.length) + '</div><div class="stat-lbl">Clean</div></div>';
-    html += '</div>';
-
-    if (flagged.length) {
-      html += '<div class="section"><h3>Flagged Hosts (' + flagged.length + ')</h3>';
-      html += '<table><thead><tr><th>Host</th><th class="num">Sessions</th><th class="num">Distinct Ports</th><th class="num">Ratio</th><th>Top Ports</th></tr></thead><tbody>';
-      for (const h of flagged) {
-        const topPorts = (h.top_ports || []).slice(0, 5).map(tp => '<span class="port-chip">' + tp.port + ' (' + tp.count + ')</span>').join(' ');
-        html += '<tr class="flagged"><td class="val">' + esc(h.host) + '</td><td class="num">' + fmt(h.total) + '</td><td class="num">' + fmt(h.distinct_ports) + '</td><td class="num">' + ((h.ratio||0)*100).toFixed(1) + '%</td><td>' + topPorts + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-    if (clean.length) {
-      html += '<div class="section"><h3>Clean Hosts (' + clean.length + ')</h3>';
-      html += '<table><thead><tr><th>Host</th><th class="num">Sessions</th><th class="num">Distinct Ports</th><th class="num">Ratio</th><th>Top Ports</th></tr></thead><tbody>';
-      for (const h of clean) {
-        const topPorts = (h.top_ports || []).slice(0, 5).map(tp => '<span class="port-chip">' + tp.port + ' (' + tp.count + ')</span>').join(' ');
-        html += '<tr><td class="val">' + esc(h.host) + '</td><td class="num">' + fmt(h.total) + '</td><td class="num">' + fmt(h.distinct_ports) + '</td><td class="num">' + ((h.ratio||0)*100).toFixed(1) + '%</td><td>' + topPorts + '</td></tr>';
-      }
-      html += '</tbody></table></div>';
-    }
-  } else if (mode === "sig_to_port") {
+  if (mode === "sig_to_port") {
     const sigs = data.signatures || [];
     const flagged = sigs.filter(s => s.flagged);
     const clean = sigs.filter(s => !s.flagged);
@@ -5235,12 +4948,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     out = dict(cached); out["cached"] = True
                     self._json(200, out)
                     return
-                if mode == "protocol_anomaly":
-                    out = do_port_scan_protocol_anomaly(cfg)
-                elif mode == "host_behavior":
-                    out = do_port_scan_host_diversity(cfg)
-                # Legacy mode names for backwards compatibility
-                elif mode == "sig_to_port":
+                if mode == "sig_to_port":
                     out = do_port_scan_sig_to_port(cfg)
                 elif mode == "port_to_sig":
                     out = do_port_scan_port_to_sig(cfg)
@@ -5397,15 +5105,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._sse_stream(worker_fn, progress_key="field", on_done=on_done)
 
     def _handle_port_scan_stream_body(self, cfg):
-        mode = cfg.get("mode", "protocol_anomaly")
+        mode = cfg.get("mode", "sig_to_port")
 
         def worker_fn(progress):
-            if mode == "protocol_anomaly":
-                return do_port_scan_protocol_anomaly(cfg, progress=progress)
-            elif mode == "host_behavior":
-                return do_port_scan_host_diversity(cfg, progress=progress)
-            # Legacy mode names
-            elif mode == "sig_to_port":
+            if mode == "sig_to_port":
                 return do_port_scan_sig_to_port(cfg, progress=progress)
             elif mode == "port_to_sig":
                 return do_port_scan_port_to_sig(cfg, progress=progress)
