@@ -1242,6 +1242,7 @@ def do_port_scan_byte_pattern(cfg, progress=None):
         "patterns": results,
         "total_patterns": len(patterns),
         "flagged_count": flagged_count,
+        "note": "Ephemeral ports (49152-65535) are excluded from 'unexpected' flagging.",
     }
 
 
@@ -4366,6 +4367,7 @@ function renderBytePattern(data, cfg) {
       <div class="stat"><div class="stat-val">${fmt(clean.length)}</div><div class="stat-lbl">Clean</div></div>
       ${errors.length ? `<div class="stat"><div class="stat-val" style="color:#f59e0b">${fmt(errors.length)}</div><div class="stat-lbl">Errors</div></div>` : ""}
     </div>
+    <div style="font-size:.75rem;color:var(--text-3);margin-top:8px">Note: Ephemeral ports (49152-65535) are excluded from "unexpected" flagging.</div>
   </div>`;
 
   const buildRow = (p) => {
