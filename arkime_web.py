@@ -116,56 +116,6 @@ def _get(cfg, path, params=None):
         return r.read().decode("utf-8", errors="replace")
 
 
-def _get_arkime_session(cfg):
-    """Get an authenticated session with Arkime (cookie + token)."""
-    base_url = cfg["url"].rstrip("/")
-    timeout = int(cfg.get("timeout_secs", 60))
-    ctx = _ssl_ctx(cfg)
-
-    cookie_handler = urllib.request.HTTPCookieProcessor()
-
-    if cfg.get("auth_type") == "digest":
-        user = cfg.get("username", "") or ""
-        pwd  = cfg.get("password", "") or ""
-        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-        pwd_mgr.add_password(None, base_url, user, pwd)
-        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
-        if ctx:
-            opener = urllib.request.build_opener(
-                auth_handler,
-                cookie_handler,
-                urllib.request.HTTPSHandler(context=ctx),
-            )
-        else:
-            opener = urllib.request.build_opener(auth_handler, cookie_handler)
-    else:
-        if ctx:
-            opener = urllib.request.build_opener(
-                cookie_handler,
-                urllib.request.HTTPSHandler(context=ctx),
-            )
-        else:
-            opener = urllib.request.build_opener(cookie_handler)
-
-    # Make initial request to get session cookie
-    req = urllib.request.Request(base_url + "/api/user")
-    h = _auth_header(cfg)
-    if h and cfg.get("auth_type") != "digest":
-        req.add_header("Authorization", h)
-
-    with opener.open(req, timeout=timeout) as r:
-        user_data = json.loads(r.read().decode("utf-8", errors="replace"))
-
-    # Extract CSRF token from cookies or user data
-    token = None
-    for cookie in cookie_handler.cookiejar:
-        if cookie.name == "ARKIME-COOKIE":
-            # Parse the cookie value for the token
-            pass
-
-    return opener, cookie_handler, user_data
-
-
 def _post_with_session(cfg, path, body=None):
     """POST JSON to Arkime using an authenticated session with cookie."""
     import http.cookiejar
@@ -658,23 +608,1262 @@ def do_anomaly_hints(cfg):
 
 # Default expected signatures for well-known ports (used by mode 2).
 # These are hints, not strict rules. Users can edit.
+# Based on IANA Service Name and Transport Protocol Port Number Registry.
 PORT_EXPECTATIONS_DEFAULT = {
-    "53":   ["dns"],
-    "80":   ["http", "tcp"],
-    "443":  ["tls", "http", "tcp"],
-    "22":   ["ssh", "tcp"],
-    "25":   ["smtp", "tcp"],
-    "110":  ["pop3", "tcp"],
-    "143":  ["imap", "tcp"],
-    "993":  ["imaps", "tls", "tcp"],
-    "995":  ["pop3s", "tls", "tcp"],
-    "3389": ["rdp", "tcp"],
-    "445":  ["smb", "tcp"],
-    "139":  ["smb", "netbios", "tcp"],
-    "21":   ["ftp", "tcp"],
-    "23":   ["telnet", "tcp"],
-    "389":  ["ldap", "tcp"],
-    "636":  ["ldaps", "tls", "tcp"],
+    "1": ["tcpmux", "tcp"],
+    "7": ["echo", "tcp", "udp"],
+    "9": ["discard", "tcp", "udp"],
+    "11": ["systat", "tcp"],
+    "13": ["daytime", "tcp", "udp"],
+    "17": ["qotd", "tcp"],
+    "19": ["chargen", "tcp", "udp"],
+    "20": ["ftp-data", "ftp", "tcp"],
+    "21": ["ftp", "tcp"],
+    "22": ["stig-ssh", "ssh", "tcp"],
+    "23": ["tn3270", "telnet", "tcp"],
+    "25": ["smtp", "tcp"],
+    "37": ["time", "tcp", "udp"],
+    "39": ["rlp", "udp"],
+    "42": ["nameserver", "wins", "tcp", "udp"],
+    "43": ["whois", "nicname", "tcp"],
+    "47": ["nato-ni-ftp", "tcp"],
+    "49": ["tacacs", "tcp", "udp"],
+    "53": ["dns", "domain", "tcp", "udp"],
+    "57": ["mtp", "tcp"],
+    "67": ["dhcp", "bootps", "udp"],
+    "68": ["dhcp", "bootpc", "udp"],
+    "69": ["tftp", "udp"],
+    "70": ["gopher", "tcp"],
+    "79": ["finger", "tcp"],
+    "80": ["sailor-http", "http", "tcp"],
+    "81": ["http-alt", "tcp"],
+    "82": ["xfer", "tcp"],
+    "83": ["mit-ml-dev", "tcp"],
+    "84": ["ctf", "tcp"],
+    "85": ["mit-ml-dev", "tcp"],
+    "88": ["kerberos", "tcp", "udp"],
+    "95": ["supdup", "tcp"],
+    "98": ["linuxconf", "tcp"],
+    "101": ["hostname", "tcp"],
+    "102": ["iso-tsap", "s7comm", "tcp"],
+    "104": ["acr-nema", "dicom", "tcp"],
+    "105": ["csnet-ns", "tcp"],
+    "106": ["poppassd", "tcp"],
+    "107": ["rtelnet", "tcp"],
+    "108": ["snagas", "tcp"],
+    "109": ["pop2", "tcp"],
+    "110": ["pop3", "tcp"],
+    "111": ["aws-efs-portmap", "rpcbind", "tcp"],
+    "113": ["ident", "auth", "tcp"],
+    "115": ["sftp", "tcp"],
+    "117": ["uucp-path", "tcp"],
+    "118": ["sqlserv", "tcp"],
+    "119": ["nntp", "tcp"],
+    "123": ["ntp", "udp"],
+    "135": ["msrpc", "tcp"],
+    "136": ["profile", "tcp"],
+    "137": ["netbios-ns", "udp"],
+    "138": ["netbios-dgm", "udp"],
+    "139": ["netbios-ssn", "tcp"],
+    "143": ["imap", "imap4", "tcp"],
+    "150": ["sql-net", "tcp"],
+    "152": ["bftp", "tcp"],
+    "153": ["sgmp", "tcp"],
+    "156": ["sqlsrv", "tcp"],
+    "158": ["pcmail", "tcp"],
+    "161": ["audiocodes-snmp", "snmp", "udp"],
+    "162": ["audiocodes-trap", "snmptrap", "udp"],
+    "170": ["print-srv", "tcp"],
+    "174": ["mailq", "tcp"],
+    "175": ["vmnet", "tcp"],
+    "177": ["xdmcp", "udp"],
+    "178": ["nextstep", "tcp"],
+    "179": ["bgp", "tcp"],
+    "180": ["ris", "tcp"],
+    "194": ["irc", "tcp"],
+    "199": ["smux", "tcp"],
+    "201": ["at-rtmp", "tcp", "udp"],
+    "202": ["at-nbp", "tcp", "udp"],
+    "203": ["at-3", "tcp", "udp"],
+    "204": ["at-echo", "tcp", "udp"],
+    "205": ["at-5", "tcp", "udp"],
+    "206": ["at-zis", "tcp", "udp"],
+    "209": ["qmtp", "tcp"],
+    "210": ["wais", "z39.50", "tcp"],
+    "213": ["ipx", "tcp", "udp"],
+    "218": ["mpp", "tcp"],
+    "220": ["imap3", "tcp"],
+    "245": ["link", "tcp"],
+    "264": ["bgmp", "tcp"],
+    "280": ["http-mgmt", "tcp"],
+    "311": ["asip-webadmin", "tcp"],
+    "312": ["vslmp", "tcp"],
+    "320": ["ptp-event", "udp"],
+    "321": ["ptp-general", "udp"],
+    "350": ["matip-type-a", "tcp"],
+    "351": ["matip-type-b", "tcp"],
+    "366": ["odmr", "tcp"],
+    "369": ["rpc2portmap", "tcp"],
+    "370": ["codaauth2", "tcp"],
+    "371": ["clearcase", "tcp"],
+    "383": ["hp-alarm-mgr", "tcp"],
+    "384": ["arns", "tcp"],
+    "387": ["aurp", "tcp", "udp"],
+    "389": ["piv-ldap", "ldap", "tcp"],
+    "391": ["synoptics-relay", "tcp", "udp"],
+    "396": ["novell-netware", "tcp"],
+    "399": ["decnet", "tcp", "udp"],
+    "401": ["ups", "tcp"],
+    "402": ["genie", "tcp"],
+    "411": ["direct-connect", "tcp"],
+    "427": ["svrloc", "slp", "tcp", "udp"],
+    "433": ["nnsp", "tcp"],
+    "443": ["rina-https", "https", "tcp"],
+    "444": ["ribbon-snare", "tcp"],
+    "445": ["smb", "microsoft-ds", "tcp"],
+    "446": ["as400-ddm-rdb", "tcp"],
+    "447": ["as400-ddm-dfm", "tcp"],
+    "448": ["as400-ddm-ssl", "tcp"],
+    "449": ["as400-as-servermap", "tcp"],
+    "458": ["appleqtc", "tcp"],
+    "464": ["kpasswd", "tcp", "udp"],
+    "465": ["smtps", "tcp"],
+    "475": ["cybercash", "tcp"],
+    "497": ["retrospect", "tcp"],
+    "500": ["isakmp", "ike", "udp"],
+    "501": ["stmf", "tcp"],
+    "502": ["modbus", "tcp"],
+    "504": ["citadel", "tcp"],
+    "510": ["fcp", "tcp"],
+    "512": ["exec", "tcp"],
+    "513": ["login", "rlogin", "tcp"],
+    "514": ["stig-syslog", "syslog", "udp"],
+    "515": ["lpd", "printer", "tcp"],
+    "517": ["talk", "udp"],
+    "518": ["gmdss-ntcip", "tcp", "udp"],
+    "519": ["navtex", "tcp", "udp"],
+    "520": ["dsc", "tcp", "udp"],
+    "521": ["ripng", "udp"],
+    "523": ["ibm-db2", "tcp", "udp"],
+    "524": ["ncp", "tcp"],
+    "525": ["timed", "udp"],
+    "530": ["courier", "tcp"],
+    "531": ["conference", "chat", "tcp"],
+    "532": ["netnews", "tcp"],
+    "533": ["netwall", "udp"],
+    "540": ["uucp", "tcp"],
+    "543": ["klogin", "tcp"],
+    "544": ["kshell", "tcp"],
+    "546": ["dhcpv6-client", "udp"],
+    "547": ["dhcpv6-server", "udp"],
+    "548": ["afp", "afpovertcp", "tcp"],
+    "554": ["rtsp", "tcp", "udp"],
+    "556": ["remotefs", "tcp"],
+    "560": ["rmonitor", "udp"],
+    "561": ["monitor", "udp"],
+    "563": ["nntps", "tcp"],
+    "564": ["9pfs", "tcp"],
+    "565": ["whoami", "tcp"],
+    "568": ["ms-shuttle", "tcp"],
+    "569": ["ms-rome", "tcp"],
+    "573": ["banyan-vip", "udp"],
+    "585": ["imap4-ssl", "tcp"],
+    "587": ["submission", "tcp"],
+    "591": ["filemaker", "tcp"],
+    "593": ["http-rpc-epmap", "tcp"],
+    "601": ["syslog-conn", "tcp"],
+    "604": ["tunnel", "tcp"],
+    "625": ["apple-xsrvr-admin", "tcp"],
+    "626": ["apple-imap-admin", "tcp"],
+    "631": ["ipp", "cups", "tcp", "udp"],
+    "632": ["ipp-ssl", "cups-ssl", "tcp"],
+    "636": ["sipr-ldaps", "ldaps", "tcp"],
+    "639": ["msdp", "tcp"],
+    "641": ["repcmd", "tcp"],
+    "646": ["ldp", "tcp", "udp"],
+    "647": ["dhcp-failover", "tcp"],
+    "648": ["rrp", "tcp"],
+    "651": ["ieee-mms", "tcp"],
+    "653": ["repscmd", "tcp"],
+    "654": ["aodv", "tcp"],
+    "655": ["tinc", "tcp", "udp"],
+    "657": ["rmc", "tcp"],
+    "660": ["mac-srvr-admin", "tcp"],
+    "666": ["doom", "tcp", "udp"],
+    "674": ["acap", "tcp"],
+    "687": ["asipregistry", "tcp"],
+    "688": ["realm-rusd", "tcp"],
+    "690": ["vatp", "tcp"],
+    "691": ["msexch-routing", "tcp"],
+    "694": ["nato-ha-cluster", "tcp"],
+    "695": ["ieee-mms-ssl", "tcp"],
+    "698": ["olsr", "udp"],
+    "699": ["accessnetwork", "tcp"],
+    "700": ["epp", "tcp"],
+    "701": ["lmp", "tcp"],
+    "702": ["iris-beep", "tcp"],
+    "705": ["agentx", "tcp"],
+    "706": ["silc", "tcp"],
+    "711": ["tdp", "tcp"],
+    "712": ["tbrpf", "tcp"],
+    "720": ["smqp", "tcp"],
+    "749": ["kerberos-adm", "tcp"],
+    "750": ["kerberos-iv", "udp"],
+    "751": ["kerberos-master", "tcp"],
+    "752": ["qrh", "tcp"],
+    "753": ["rrh", "tcp"],
+    "754": ["krb5-prop", "tcp"],
+    "760": ["krbupdate", "tcp"],
+    "782": ["conserver", "tcp"],
+    "783": ["spamd", "spamassassin", "tcp"],
+    "800": ["mdbs-daemon", "tcp"],
+    "808": ["ms-wbt", "ccproxy-http", "tcp"],
+    "809": ["ms-wbt", "tcp"],
+    "829": ["pkix-3-ca-ra", "tcp"],
+    "830": ["netconf-ssh", "tcp"],
+    "843": ["flash-policy", "tcp"],
+    "847": ["dhcp-failover2", "tcp"],
+    "848": ["gdoi", "tcp"],
+    "853": ["dns-over-tls", "tcp"],
+    "860": ["iscsi", "tcp"],
+    "861": ["owamp-control", "tcp"],
+    "862": ["twamp-control", "tcp"],
+    "873": ["rsync", "tcp"],
+    "875": ["rquotad", "tcp", "udp"],
+    "888": ["accessbuilder", "tcp"],
+    "897": ["brocade-smis", "tcp"],
+    "898": ["sun-manageconsole", "tcp"],
+    "900": ["omginitialrefs", "tcp"],
+    "901": ["samba-swat", "tcp"],
+    "902": ["vmware-authd", "tcp"],
+    "903": ["vmware-auth-ssl", "ideafarm-panic", "tcp"],
+    "904": ["vmware-authd", "tcp"],
+    "905": ["vmware-localhost", "tcp"],
+    "910": ["kink", "tcp"],
+    "911": ["xact-backup", "tcp"],
+    "912": ["apex-mesh", "tcp"],
+    "953": ["rndc", "tcp"],
+    "981": ["sophia-lm", "tcp"],
+    "985": ["netinfo-local", "tcp"],
+    "987": ["msnp", "tcp"],
+    "989": ["ftps-data", "tcp"],
+    "990": ["ftps", "tcp"],
+    "991": ["nas", "tcp"],
+    "992": ["tn3270-ssl", "telnets", "tcp"],
+    "993": ["jwics-imaps", "imaps", "tcp"],
+    "994": ["ircs", "tcp"],
+    "995": ["dod-pop3s", "pop3s", "tcp"],
+    "996": ["xtreelic", "tcp"],
+    "997": ["maitrd", "tcp"],
+    "998": ["busboy", "tcp"],
+    "999": ["garcon", "puprouter", "tcp"],
+    "1000": ["cadlock", "tcp"],
+    "1001": ["webpush", "tcp"],
+    "1002": ["windows-icfw", "tcp"],
+    "1008": ["ufsd", "tcp"],
+    "1010": ["surf", "tcp"],
+    "1021": ["exp1", "tcp"],
+    "1022": ["nato-exp2", "tcp"],
+    "1023": ["nato-reserved", "tcp"],
+    "1024": ["apex-game", "udp"],
+    "1025": ["nfs-or-iis", "tcp"],
+    "1026": ["cap", "tcp"],
+    "1027": ["exosee", "tcp"],
+    "1028": ["jdm", "tcp"],
+    "1029": ["solid-mux", "tcp"],
+    "1030": ["iad1", "tcp"],
+    "1080": ["socks", "socks5", "tcp"],
+    "1081": ["socks", "tcp"],
+    "1085": ["webobjects", "tcp"],
+    "1099": ["rmiregistry", "java-rmi", "tcp"],
+    "1100": ["mctp", "tcp"],
+    "1111": ["lmsocialserver", "tcp"],
+    "1119": ["overwatch-game", "tcp"],
+    "1158": ["oracle-emctl", "tcp"],
+    "1159": ["oracle-oms", "tcp"],
+    "1161": ["snmp-ssl", "tcp"],
+    "1162": ["snmptrap-ssl", "tcp"],
+    "1194": ["ooma-ha", "udp"],
+    "1200": ["flightaware-beast", "tcp"],
+    "1214": ["kazaa", "tcp"],
+    "1234": ["hotline", "infoseek", "tcp", "udp"],
+    "1241": ["nessus", "tcp"],
+    "1293": ["ipsendmsg", "tcp"],
+    "1311": ["dod-rxmon", "tcp"],
+    "1337": ["waste", "menandmice-dns", "tcp"],
+    "1352": ["lotusnotes", "lotus-domino", "tcp"],
+    "1371": ["ais-gpsd", "tcp"],
+    "1414": ["ibm-mq", "mqseries", "tcp"],
+    "1415": ["ibm-mq-ssl", "tcp"],
+    "1433": ["aodb-mssql", "mssql", "tcp"],
+    "1434": ["mssql", "ms-sql-m", "udp"],
+    "1494": ["citrix-ica", "tcp"],
+    "1500": ["ibm-fcsrv", "tcp"],
+    "1501": ["ibm-sasg", "tcp"],
+    "1503": ["imtc-mcs", "tcp"],
+    "1512": ["wins", "tcp", "udp"],
+    "1514": ["stig-syslog-tls", "tcp"],
+    "1515": ["wazuh-agent", "tcp"],
+    "1516": ["wazuh-cluster", "tcp"],
+    "1521": ["aodb-oracle", "oracle", "tcp"],
+    "1524": ["ingreslock", "tcp"],
+    "1525": ["oracle", "orasrv", "tcp"],
+    "1526": ["oracle", "prospero-np", "tcp"],
+    "1527": ["oracle-tlisrv", "tcp"],
+    "1533": ["ibm-sametime", "tcp"],
+    "1545": ["fleet-inmarsat", "tcp"],
+    "1546": ["fleet-inmarsat", "tcp"],
+    "1571": ["oracle", "rdb-dbs-disp", "tcp"],
+    "1604": ["citrix-slc", "udp"],
+    "1626": ["iridium-certus", "tcp"],
+    "1630": ["oracle", "tcp"],
+    "1645": ["radius-old", "udp"],
+    "1646": ["radius-acct-old", "udp"],
+    "1688": ["kms", "tcp"],
+    "1698": ["rsvp-encap-1", "udp"],
+    "1699": ["rsvp-encap-2", "udp"],
+    "1701": ["l2tp", "udp"],
+    "1702": ["l2tp", "udp"],
+    "1718": ["h323-gk-disc", "udp"],
+    "1719": ["h323-gk-ras", "udp"],
+    "1720": ["h323-cs", "tcp"],
+    "1723": ["pptp", "tcp"],
+    "1748": ["oracle-jdbc", "tcp"],
+    "1749": ["oracle-em", "tcp"],
+    "1762": ["thuraya-voice", "tcp"],
+    "1801": ["msmq", "tcp"],
+    "1808": ["oracle-vpd", "tcp"],
+    "1809": ["oracle-vpd", "tcp"],
+    "1810": ["oracle-em-agent", "tcp"],
+    "1812": ["dod-radius", "radius", "udp"],
+    "1813": ["dod-radius-acct", "radius-acct", "udp"],
+    "1830": ["oracle-netsw", "tcp"],
+    "1831": ["oracle-netsw", "tcp"],
+    "1883": ["mqtt", "tcp"],
+    "1900": ["ssdp", "upnp", "udp"],
+    "1911": ["fox", "niagara-fox", "tcp"],
+    "1935": ["youtube-rtmp", "rtmp", "tcp"],
+    "1966": ["slush", "tcp"],
+    "1967": ["sns-quote", "tcp"],
+    "1985": ["hsrp", "udp"],
+    "2000": ["radioholland-nmea", "tcp"],
+    "2001": ["kongsberg-nmea", "tcp"],
+    "2002": ["aishub", "tcp"],
+    "2003": ["aishub", "tcp"],
+    "2004": ["graphite-pickle", "tcp"],
+    "2005": ["graphite-relay", "tcp"],
+    "2010": ["link11-slew", "tcp", "udp"],
+    "2011": ["link11-slew", "tcp", "udp"],
+    "2012": ["link11-net", "tcp", "udp"],
+    "2013": ["link11-net", "tcp", "udp"],
+    "2014": ["link11-pic", "tcp", "udp"],
+    "2015": ["link11-pic", "tcp", "udp"],
+    "2020": ["vmware-fdm", "tcp"],
+    "2030": ["oracle-aq", "tcp"],
+    "2040": ["lam", "tcp"],
+    "2048": ["cpdlc", "tcp"],
+    "2049": ["cpdlc", "tcp"],
+    "2050": ["ctu-tci", "tcp"],
+    "2053": ["navico", "tcp"],
+    "2054": ["navico", "tcp"],
+    "2055": ["netflow", "udp"],
+    "2060": ["teleniumdaemon", "tcp"],
+    "2071": ["citrix-rtmp", "tcp"],
+    "2080": ["autodesk-nlm", "tcp"],
+    "2082": ["cpanel", "tcp"],
+    "2083": ["cpanel-ssl", "tcp"],
+    "2086": ["gnunet", "tcp"],
+    "2087": ["whm-ssl", "tcp"],
+    "2095": ["webmail", "tcp"],
+    "2096": ["webmail-ssl", "tcp"],
+    "2099": ["lol-patcher", "tcp"],
+    "2100": ["oracle-weblogic", "tcp"],
+    "2101": ["ms-rtsp", "tcp"],
+    "2103": ["ms-mq", "tcp"],
+    "2105": ["ms-mq", "tcp"],
+    "2107": ["ms-msmq", "tcp"],
+    "2181": ["zookeeper", "tcp"],
+    "2182": ["zookeeper-ssl", "tcp"],
+    "2200": ["ici", "tcp"],
+    "2222": ["cowrie", "ssh-alt", "tcp"],
+    "2223": ["cowrie-telnet", "tcp"],
+    "2323": ["telnet-alt", "tcp"],
+    "2375": ["aws-ecs-docker", "docker", "tcp"],
+    "2376": ["docker-tls", "tcp"],
+    "2377": ["docker-swarm", "tcp"],
+    "2379": ["pd-client", "etcd-client", "tcp"],
+    "2380": ["pd-peer", "etcd-peer", "tcp"],
+    "2393": ["ms-olap1", "tcp"],
+    "2394": ["ms-olap2", "tcp"],
+    "2404": ["iec-104", "tcp"],
+    "2427": ["mgcp-gw", "udp"],
+    "2428": ["mgcp-ca", "udp"],
+    "2483": ["oracle", "ttc", "tcp"],
+    "2484": ["oracle", "ttc-ssl", "tcp"],
+    "2512": ["citrix-app", "tcp"],
+    "2513": ["citrix-app", "tcp"],
+    "2514": ["syslog", "tcp"],
+    "2525": ["smtp-alt", "tcp"],
+    "2533": ["omnipcx-csta", "tcp"],
+    "2534": ["omnipcx-cti", "tcp"],
+    "2535": ["omnipcx-cti", "tcp"],
+    "2555": ["omnipcx-admin", "tcp"],
+    "2560": ["omnipcx-tapi", "tcp"],
+    "2598": ["citrix-cgp", "tcp"],
+    "2599": ["citrix-cgp", "udp"],
+    "2626": ["gopher-alt", "tcp"],
+    "2725": ["ms-mqs", "tcp"],
+    "2727": ["mgcp-ca-alt", "udp"],
+    "2761": ["omnipcx-dirsync", "tcp"],
+    "2762": ["omnipcx-dirsync", "tcp"],
+    "2763": ["omnipcx-rss", "tcp"],
+    "2764": ["omnipcx-rss", "tcp"],
+    "2765": ["omnipcx-pabx", "tcp"],
+    "2809": ["ibm-corbaloc", "tcp"],
+    "2869": ["upnp-ssdp", "icslap", "tcp"],
+    "2888": ["zookeeper-leader", "tcp"],
+    "2944": ["megaco-txt", "udp"],
+    "2945": ["megaco-bin", "udp"],
+    "2947": ["opencpn-gpsd", "tcp"],
+    "2967": ["symantec-av", "tcp"],
+    "3000": ["sperry-visionmaster", "tcp"],
+    "3001": ["sperry-visionmaster", "tcp"],
+    "3002": ["dis", "udp"],
+    "3003": ["jreap-c", "tcp"],
+    "3030": ["arepa-cas", "tcp"],
+    "3031": ["eppc", "tcp"],
+    "3050": ["firebird", "gds-db", "tcp"],
+    "3074": ["cod-xbox", "udp"],
+    "3128": ["squid", "tcp"],
+    "3129": ["squid", "tcp"],
+    "3200": ["arinc-msg", "tcp"],
+    "3201": ["arinc-msg", "tcp"],
+    "3202": ["sap-disp", "tcp"],
+    "3203": ["sap-disp", "tcp"],
+    "3204": ["sap-disp", "tcp"],
+    "3205": ["sap-disp", "tcp"],
+    "3206": ["sap-disp", "tcp"],
+    "3207": ["sap-disp", "tcp"],
+    "3208": ["sap-disp", "tcp"],
+    "3209": ["sap-disp", "tcp"],
+    "3210": ["sap-disp", "tcp"],
+    "3220": ["sap-disp", "tcp"],
+    "3224": ["citrix-nat", "tcp"],
+    "3225": ["citrix-fcip", "tcp"],
+    "3230": ["polycom-sbc", "tcp"],
+    "3231": ["polycom-sbc", "tcp"],
+    "3240": ["sap-disp", "tcp"],
+    "3250": ["sap-disp", "tcp"],
+    "3260": ["iscsi", "tcp"],
+    "3261": ["winshadow", "tcp"],
+    "3268": ["sipr-gc", "ldap-gc", "tcp"],
+    "3269": ["sipr-gc-ssl", "ldaps-gc", "tcp"],
+    "3270": ["tn3270", "tcp"],
+    "3271": ["tn3270", "tcp"],
+    "3272": ["tn3270", "tcp"],
+    "3273": ["tn3270", "tcp"],
+    "3274": ["tn3270", "tcp"],
+    "3275": ["tn3270", "tcp"],
+    "3283": ["netassistant", "tcp"],
+    "3289": ["epson-fw", "tcp"],
+    "3291": ["epson-scan", "tcp"],
+    "3299": ["sap-disp", "tcp"],
+    "3300": ["sap-gw", "ceph", "tcp"],
+    "3301": ["sap-gw", "tcp"],
+    "3302": ["sap-gw", "tcp"],
+    "3303": ["sap-gw", "tcp"],
+    "3306": ["aodb-mysql", "mysql", "tcp"],
+    "3307": ["mariadb-alt", "tcp"],
+    "3333": ["dec-notes", "tcp"],
+    "3342": ["azure-sql-mi", "tcp"],
+    "3351": ["pervasive", "btrieve", "tcp"],
+    "3388": ["rdp-alt", "tcp"],
+    "3389": ["isaf-rdp", "rdp", "tcp"],
+    "3399": ["sap-gw", "tcp"],
+    "3443": ["signalk-ssl", "tcp"],
+    "3456": ["vat-control", "tcp"],
+    "3478": ["webrtc-stun", "stun", "tcp", "udp"],
+    "3479": ["webrtc-stun", "stun", "udp"],
+    "3480": ["overwatch-stun", "udp"],
+    "3481": ["teams-stun", "udp"],
+    "3500": ["rtmp-port", "tcp"],
+    "3535": ["smtp-alt", "tcp"],
+    "3600": ["sita-type-b", "tcp"],
+    "3601": ["sita-type-b", "tcp"],
+    "3632": ["distcc", "tcp"],
+    "3659": ["origin-p2p", "udp"],
+    "3689": ["daap", "tcp"],
+    "3690": ["svn", "subversion", "tcp"],
+    "3699": ["sap-msg", "tcp"],
+    "3702": ["ws-discovery", "tcp", "udp"],
+    "3724": ["overwatch-bnet", "tcp"],
+    "3749": ["cimtrak", "tcp"],
+    "3784": ["bfd-control", "udp"],
+    "3785": ["bfd-echo", "udp"],
+    "3790": ["metasploit", "tcp"],
+    "3799": ["radius-dynauth", "udp"],
+    "3868": ["diameter", "tcp", "sctp"],
+    "3888": ["zookeeper-election", "tcp"],
+    "3900": ["sap-internal", "tcp"],
+    "3901": ["sap-internal", "tcp"],
+    "3910": ["prnrequest", "tcp"],
+    "3920": ["exasoftport1", "tcp"],
+    "3945": ["emcads", "tcp"],
+    "3978": ["starcraft", "tcp", "udp"],
+    "3979": ["starcraft-test", "tcp", "udp"],
+    "4000": ["sperry-radar", "tcp"],
+    "4001": ["kelvinhughes-radar", "tcp"],
+    "4002": ["vmf", "tcp", "udp"],
+    "4022": ["dnox", "tcp"],
+    "4035": ["ibm-wam", "tcp"],
+    "4040": ["subsonic", "tcp"],
+    "4045": ["lockd", "tcp", "udp"],
+    "4050": ["subsonic-https", "tcp"],
+    "4060": ["openscape-sip", "tcp"],
+    "4061": ["openscape-sips", "tcp"],
+    "4062": ["openscape-srtp", "udp"],
+    "4063": ["openscape-srtp", "udp"],
+    "4064": ["ice-ssl", "tcp"],
+    "4070": ["alexa-companion", "tcp"],
+    "4100": ["ale-opentouch", "tcp"],
+    "4111": ["xgrid", "tcp"],
+    "4149": ["kubelet", "tcp"],
+    "4189": ["pcep", "tcp"],
+    "4190": ["sieve", "tcp"],
+    "4194": ["cadvisor", "tcp"],
+    "4200": ["cratedb-http", "tcp"],
+    "4222": ["nats", "tcp"],
+    "4224": ["cucm-cti", "tcp"],
+    "4242": ["bms-cot", "tcp"],
+    "4243": ["atak-streaming", "tcp"],
+    "4290": ["arinc429", "tcp"],
+    "4291": ["arinc429", "tcp"],
+    "4292": ["arinc429-mon", "tcp"],
+    "4293": ["arinc429-ctrl", "tcp"],
+    "4300": ["cratedb-transport", "tcp"],
+    "4317": ["opentelemetry-grpc", "tcp"],
+    "4318": ["opentelemetry-http", "tcp"],
+    "4321": ["rwhois", "tcp"],
+    "4334": ["netconf-ch-ssh", "tcp"],
+    "4352": ["wx-metar", "tcp"],
+    "4353": ["wx-taf", "tcp"],
+    "4354": ["flarm-data", "tcp"],
+    "4355": ["flarm-config", "tcp"],
+    "4369": ["epmd", "erlang", "tcp"],
+    "4430": ["dod-rsqlserver", "tcp"],
+    "4433": ["https-alt", "tcp"],
+    "4443": ["ale-rainbow", "tcp"],
+    "4444": ["i2p-http", "tcp"],
+    "4445": ["i2p-https", "tcp"],
+    "4455": ["obs-websocket", "tcp"],
+    "4500": ["link22-data", "tcp", "udp"],
+    "4501": ["link22-data", "tcp", "udp"],
+    "4502": ["link22-ctrl", "tcp", "udp"],
+    "4503": ["link22-ctrl", "tcp", "udp"],
+    "4505": ["salt-master", "tcp"],
+    "4506": ["salt-master", "tcp"],
+    "4555": ["avaya-ipofficemgr", "tcp"],
+    "4567": ["percona-galera", "tcp"],
+    "4568": ["percona-ist", "tcp"],
+    "4569": ["yeastar-iax", "udp"],
+    "4646": ["nomad", "tcp"],
+    "4647": ["nomad-rpc", "tcp"],
+    "4648": ["nomad-serf", "tcp", "udp"],
+    "4662": ["emule", "edonkey", "tcp"],
+    "4672": ["emule", "edonkey", "udp"],
+    "4689": ["fdb-server", "tcp"],
+    "4700": ["sap-netweaver", "tcp"],
+    "4708": ["hipath-csta", "tcp"],
+    "4709": ["hipath-csta", "tcp"],
+    "4711": ["hipath-admin", "tcp"],
+    "4730": ["gearman", "tcp"],
+    "4739": ["ipfix", "tcp", "udp"],
+    "4747": ["couchbase", "tcp"],
+    "4784": ["bfd-multi", "udp"],
+    "4840": ["opcua", "tcp"],
+    "4843": ["opcua-tls", "tcp"],
+    "4848": ["glassfish", "tcp"],
+    "4949": ["munin", "tcp"],
+    "5000": ["mrv-data", "tcp"],
+    "5001": ["abb-marine-ctrl", "tcp"],
+    "5002": ["cobham-sailor", "tcp"],
+    "5003": ["afdx-vl", "udp"],
+    "5004": ["srtp", "rtp", "udp"],
+    "5005": ["srtcp", "rtcp", "udp"],
+    "5006": ["synology-webdav-ssl", "tcp"],
+    "5007": ["wsm-server-ssl", "tcp"],
+    "5009": ["airport-admin", "tcp"],
+    "5010": ["milstd6016", "tcp", "udp"],
+    "5011": ["milstd6016", "tcp", "udp"],
+    "5015": ["3cx-prov", "tcp"],
+    "5020": ["milstd2045", "tcp"],
+    "5021": ["milstd2045", "tcp"],
+    "5022": ["azure-sql-alwayson", "tcp"],
+    "5036": ["asterisk-iax", "tcp", "udp"],
+    "5037": ["adb", "tcp"],
+    "5038": ["wazo-ami", "tcp"],
+    "5044": ["logstash-beats", "tcp"],
+    "5045": ["logstash", "tcp"],
+    "5050": ["mmcc", "tcp"],
+    "5051": ["ita-agent", "tcp"],
+    "5055": ["logstash-forwarding", "tcp"],
+    "5060": ["l3harris-voip", "sip", "tcp", "udp"],
+    "5061": ["centrixs-sips", "sips", "tcp"],
+    "5062": ["stanag-sip", "sip", "tcp"],
+    "5063": ["stanag-sip", "tcp"],
+    "5064": ["stanag-xmpp", "tcp"],
+    "5065": ["stanag-xmpp", "tcp"],
+    "5066": ["freeswitch-ws", "tcp"],
+    "5067": ["freeswitch-wss", "tcp"],
+    "5070": ["audiocodes-sip-alt", "tcp", "udp"],
+    "5080": ["audiocodes-sip-proxy", "tcp", "udp"],
+    "5090": ["ribbon-sip-alt", "tcp", "udp"],
+    "5091": ["zoom-h323", "tcp"],
+    "5100": ["adsc-data", "tcp"],
+    "5101": ["adsc-ctrl", "tcp"],
+    "5102": ["sadl-voice", "udp"],
+    "5103": ["sadl-voice", "udp"],
+    "5104": ["tinymux", "tcp"],
+    "5140": ["syslog-tls", "tcp"],
+    "5150": ["atmp", "tcp"],
+    "5151": ["pcrd", "tcp"],
+    "5160": ["freepbx-pjsip", "udp"],
+    "5161": ["freepbx-pjsip-tls", "tcp"],
+    "5190": ["vsat-maritime", "tcp"],
+    "5191": ["vsat-maritime", "tcp"],
+    "5200": ["fans-cpdlc", "tcp"],
+    "5201": ["fans-ads", "tcp"],
+    "5202": ["fans-atn", "tcp"],
+    "5222": ["csd-xmpp", "xmpp", "tcp"],
+    "5223": ["wildix-xmpp", "tcp"],
+    "5228": ["line-push", "tcp"],
+    "5250": ["as400-tn5250", "tcp"],
+    "5262": ["ale-opentouch", "tcp"],
+    "5263": ["ale-opentouch", "tcp"],
+    "5269": ["dcs-xmpp-s2s", "tcp"],
+    "5280": ["xmpp-bosh", "tcp"],
+    "5297": ["mlchat-link", "tcp"],
+    "5298": ["xerox-presence", "tcp"],
+    "5322": ["marinetraffic-ais", "tcp"],
+    "5349": ["webrtc-turns", "tcp"],
+    "5353": ["homekit-mdns", "mdns", "udp"],
+    "5354": ["mdnsresponder", "tcp"],
+    "5355": ["llmnr", "dns", "tcp", "udp"],
+    "5357": ["wsd", "wsdapi", "tcp"],
+    "5358": ["wsd", "wsdapi-ssl", "tcp"],
+    "5432": ["aodb-postgres", "postgresql", "tcp"],
+    "5433": ["yugabyte-ysql", "tcp"],
+    "5450": ["wx-sigmet", "tcp"],
+    "5451": ["wx-airmet", "tcp"],
+    "5480": ["vmware-appliance", "tcp"],
+    "5500": ["notam-data", "tcp"],
+    "5501": ["fgfs-ctrls", "udp"],
+    "5514": ["syslog-tls", "tcp"],
+    "5520": ["oracle-opmn", "tcp"],
+    "5540": ["oracle-oas", "tcp"],
+    "5550": ["acarsdec", "udp"],
+    "5551": ["acars", "udp"],
+    "5552": ["acars", "udp"],
+    "5553": ["acars", "udp"],
+    "5554": ["acars", "udp"],
+    "5555": ["dumpvdl2", "udp"],
+    "5556": ["hfdl", "udp"],
+    "5557": ["hfdl", "udp"],
+    "5560": ["oracle-webcache", "tcp"],
+    "5580": ["vmware-cis", "tcp"],
+    "5600": ["missionplanner-video", "udp"],
+    "5601": ["kibana", "tcp"],
+    "5631": ["pcanywhere-data", "tcp"],
+    "5632": ["pcanywhere-status", "udp"],
+    "5658": ["diameter-tls", "tcp"],
+    "5666": ["nagios-nrpe", "tcp"],
+    "5667": ["nagios-nsca", "tcp"],
+    "5671": ["amqps", "amqp", "tls", "tcp"],
+    "5672": ["amqp", "tcp"],
+    "5678": ["rrac", "tcp"],
+    "5722": ["dfsr", "msrpc", "tcp"],
+    "5760": ["mavlink-tcp", "tcp"],
+    "5761": ["mavlink-tcp", "tcp"],
+    "5762": ["mavlink-tcp", "tcp"],
+    "5795": ["fortnite-game", "udp"],
+    "5800": ["vnc-http", "tcp"],
+    "5801": ["vnc-http", "tcp"],
+    "5802": ["vnc-http", "tcp"],
+    "5803": ["vnc-http", "tcp"],
+    "5847": ["fortnite-game", "udp"],
+    "5868": ["diameter-dtls", "udp"],
+    "5900": ["vnc", "rfb", "tcp"],
+    "5901": ["vnc", "rfb", "tcp"],
+    "5902": ["vnc", "rfb", "tcp"],
+    "5903": ["vnc", "rfb", "tcp"],
+    "5904": ["vnc", "rfb", "tcp"],
+    "5905": ["vnc", "rfb", "tcp"],
+    "5906": ["vnc", "rfb", "tcp"],
+    "5907": ["vnc", "rfb", "tcp"],
+    "5908": ["vnc", "rfb", "tcp"],
+    "5909": ["vnc", "rfb", "tcp"],
+    "5910": ["atn-x25", "tcp"],
+    "5911": ["atn-x25", "tcp"],
+    "5938": ["teamviewer", "tcp"],
+    "5984": ["couchdb", "tcp"],
+    "5985": ["jwics-winrm", "winrm", "tcp"],
+    "5986": ["jwics-winrm-ssl", "winrm-ssl", "tcp"],
+    "5987": ["ibm-wbem-http", "tcp"],
+    "5988": ["vmware-wbem", "tcp"],
+    "5989": ["vmware-wbem-ssl", "tcp"],
+    "6000": ["orbcomm-ais", "tcp"],
+    "6001": ["kongsberg-multibeam", "tcp"],
+    "6002": ["kongsberg-multibeam", "tcp"],
+    "6003": ["eplrs-pos", "udp"],
+    "6004": ["x11", "tcp"],
+    "6005": ["x11", "tcp"],
+    "6006": ["x11", "tcp"],
+    "6007": ["x11", "tcp"],
+    "6008": ["x11", "tcp"],
+    "6009": ["x11", "tcp"],
+    "6010": ["x11", "tcp"],
+    "6052": ["esphome-api", "tcp"],
+    "6053": ["esphome-native", "tcp"],
+    "6063": ["x11", "tcp"],
+    "6080": ["dgraph-zero-http", "tcp"],
+    "6100": ["sincgars-data", "tcp", "udp"],
+    "6101": ["sincgars-data", "tcp", "udp"],
+    "6112": ["overwatch-bnet", "tcp"],
+    "6113": ["wow-bnet", "tcp"],
+    "6114": ["wow-bnet", "tcp"],
+    "6200": ["havequick", "udp"],
+    "6201": ["havequick", "udp"],
+    "6241": ["netconf-tls", "tcp"],
+    "6262": ["sybase-rep", "tcp"],
+    "6290": ["arinc629", "tcp"],
+    "6291": ["arinc629-mon", "tcp"],
+    "6292": ["arinc629-ctrl", "tcp"],
+    "6343": ["sflow", "udp"],
+    "6346": ["gnutella", "tcp"],
+    "6347": ["gnutella", "udp"],
+    "6379": ["aws-elasticache", "redis", "tcp"],
+    "6380": ["redis", "tcp"],
+    "6443": ["kubernetes-api", "tcp"],
+    "6463": ["discord-rpc", "tcp"],
+    "6501": ["vmware-bmc", "tcp"],
+    "6502": ["vmware-bmc", "tcp"],
+    "6514": ["stig-syslog-tls", "tcp"],
+    "6530": ["arinc653-ipc", "tcp"],
+    "6531": ["arinc653-ipc", "tcp"],
+    "6566": ["sane-port", "tcp"],
+    "6568": ["anydesk", "tcp", "udp"],
+    "6650": ["pulsar", "tcp"],
+    "6651": ["pulsar-tls", "tcp"],
+    "6660": ["irc", "tcp"],
+    "6661": ["irc", "tcp"],
+    "6662": ["irc", "tcp"],
+    "6663": ["irc", "tcp"],
+    "6664": ["irc", "tcp"],
+    "6665": ["irc", "tcp"],
+    "6666": ["epic-matchmaking", "udp"],
+    "6667": ["nintendo-nat", "udp"],
+    "6668": ["epic-matchmaking", "udp"],
+    "6669": ["epic-matchmaking", "udp"],
+    "6672": ["gta-game", "udp"],
+    "6690": ["synology-drive", "tcp"],
+    "6697": ["ircs", "irc-ssl", "tcp"],
+    "6783": ["weave-net", "tcp"],
+    "6784": ["weave-net", "udp"],
+    "6789": ["cyberdata-multicast", "udp"],
+    "6800": ["mitel-micollab", "tcp"],
+    "6801": ["mitel-micollab", "tcp"],
+    "6802": ["mitel-micollab", "tcp"],
+    "6881": ["bittorrent", "tcp"],
+    "6882": ["bittorrent", "tcp"],
+    "6883": ["bittorrent", "tcp"],
+    "6884": ["bittorrent", "tcp"],
+    "6885": ["bittorrent", "tcp"],
+    "6886": ["bittorrent", "tcp"],
+    "6887": ["bittorrent", "tcp"],
+    "6888": ["bittorrent", "tcp"],
+    "6889": ["bittorrent", "tcp"],
+    "6969": ["bittorrent-tracker", "tcp"],
+    "6970": ["cucm-tftp", "tcp"],
+    "6971": ["cucm-tftp", "tcp"],
+    "6972": ["cucm-tftp", "tcp"],
+    "7000": ["transas-vts", "tcp"],
+    "7001": ["nec-sv9000", "tcp"],
+    "7002": ["nec-sv9000", "tcp"],
+    "7003": ["oracle-weblogic", "tcp"],
+    "7004": ["oracle-weblogic", "tcp"],
+    "7005": ["afs3-volser", "tcp"],
+    "7006": ["afs3-errors", "tcp"],
+    "7007": ["afs3-bos", "tcp"],
+    "7070": ["realserver", "http-alt", "tcp"],
+    "7080": ["dgraph-zero-grpc", "tcp"],
+    "7100": ["yugabyte-tserver-rpc", "tcp"],
+    "7101": ["oracle-weblogic-admin", "tcp"],
+    "7112": ["garmin-pilot-sync", "tcp"],
+    "7199": ["cassandra", "tcp"],
+    "7201": ["oracle-dlp", "tcp"],
+    "7276": ["ibm-wlm", "tcp"],
+    "7277": ["ibm-wlm-ssl", "tcp"],
+    "7279": ["citrix-lic", "tcp"],
+    "7301": ["oracle-oa", "tcp"],
+    "7359": ["jellyfin-discovery", "udp"],
+    "7400": ["genesys-config", "tcp"],
+    "7401": ["genesys-stat", "tcp"],
+    "7402": ["genesys-router", "tcp"],
+    "7403": ["genesys-urs", "tcp"],
+    "7438": ["ms-sstp", "tcp"],
+    "7443": ["freeswitch-wss-alt", "tcp"],
+    "7473": ["neo4j-https", "tcp"],
+    "7474": ["neo4j-http", "tcp"],
+    "7501": ["oracle-oa", "tcp"],
+    "7601": ["oracle-oa", "tcp"],
+    "7654": ["i2p-sam", "tcp"],
+    "7655": ["i2p-sam-udp", "udp"],
+    "7656": ["i2p-bob", "tcp"],
+    "7657": ["i2p-console", "tcp"],
+    "7658": ["i2p-eepsite", "tcp"],
+    "7659": ["i2p-smtp", "tcp"],
+    "7660": ["i2p-pop3", "tcp"],
+    "7687": ["neo4j-bolt", "tcp"],
+    "7701": ["oracle-oa", "tcp"],
+    "7777": ["nec-admin", "tcp"],
+    "7778": ["ark-query", "udp"],
+    "7779": ["rocketleague-game", "udp"],
+    "7780": ["rocketleague-game", "udp"],
+    "7781": ["rocketleague-game", "udp"],
+    "7782": ["rocketleague-game", "udp"],
+    "7990": ["bitbucket", "tcp"],
+    "8000": ["exactearth-ais", "tcp"],
+    "8001": ["gtmaritime-ctrl", "tcp"],
+    "8002": ["teradataordbms", "tcp"],
+    "8008": ["chromecast-http", "tcp"],
+    "8009": ["chromecast-cast", "tcp"],
+    "8010": ["xmpp-bosh-alt", "tcp"],
+    "8021": ["freeswitch-esl", "tcp"],
+    "8022": ["yeastar-ssh", "tcp"],
+    "8023": ["tn3270-http", "tcp"],
+    "8028": ["novell-nmas", "tcp"],
+    "8040": ["restconf", "tcp"],
+    "8042": ["hdfs-datanode", "tcp"],
+    "8045": ["fidorpc", "tcp"],
+    "8065": ["mattermost", "tcp"],
+    "8069": ["odoo", "tcp"],
+    "8080": ["dnv-veracity", "http-proxy", "tcp"],
+    "8081": ["qnap-qts", "tcp"],
+    "8082": ["freeswitch-ws", "tcp"],
+    "8083": ["ringcentral-ws", "tcp"],
+    "8084": ["openscape-xmpp", "tcp"],
+    "8085": ["openscape-admin", "tcp"],
+    "8086": ["influxdb", "tcp"],
+    "8087": ["bms-sa", "tcp"],
+    "8088": ["bms-ctrl", "tcp"],
+    "8089": ["vitalpbx-wss", "tcp"],
+    "8090": ["opsmessaging", "tcp"],
+    "8096": ["jellyfin", "tcp"],
+    "8098": ["riak-http", "tcp"],
+    "8100": ["vmware-dvs", "tcp"],
+    "8111": ["teamcity", "tcp"],
+    "8118": ["privoxy", "tcp"],
+    "8123": ["homeassistant", "tcp"],
+    "8125": ["statsd", "udp"],
+    "8126": ["statsd-admin", "tcp"],
+    "8140": ["puppet", "tcp"],
+    "8153": ["gocd", "tcp"],
+    "8161": ["activemq-admin", "tcp"],
+    "8180": ["valorant-anticheat", "tcp"],
+    "8181": ["restconf-http", "tcp"],
+    "8182": ["vmware-api", "tcp"],
+    "8200": ["vmware-ha", "vault", "tcp"],
+    "8220": ["splunk-web", "tcp"],
+    "8222": ["nats-monitor", "tcp"],
+    "8243": ["restconf-https", "tcp"],
+    "8280": ["http-alt", "tcp"],
+    "8281": ["http-alt", "tcp"],
+    "8291": ["mikrotik-winbox", "tcp"],
+    "8300": ["vmware-tmc", "tcp"],
+    "8301": ["vmware-cluster", "tcp"],
+    "8302": ["vmware-cluster", "tcp"],
+    "8332": ["bitcoin-rpc", "tcp"],
+    "8333": ["bitcoin-p2p", "tcp"],
+    "8384": ["syncthing-gui", "tcp"],
+    "8393": ["lol-client", "tcp"],
+    "8394": ["lol-client", "tcp"],
+    "8443": ["utm-api", "https-alt", "tcp"],
+    "8444": ["https-alt", "tcp"],
+    "8446": ["takserver-federation", "tcp"],
+    "8470": ["as400-signon", "tcp"],
+    "8471": ["as400-portal", "tcp"],
+    "8472": ["as400-central", "tcp"],
+    "8473": ["as400-rmtcmd", "tcp"],
+    "8474": ["as400-filetransfer", "tcp"],
+    "8475": ["as400-netprint", "tcp"],
+    "8476": ["as400-database", "tcp"],
+    "8484": ["mura-cms", "tcp"],
+    "8500": ["consul-http", "tcp"],
+    "8501": ["consul-https", "tcp"],
+    "8502": ["consul-grpc", "tcp"],
+    "8529": ["arangodb", "tcp"],
+    "8530": ["wsus", "http", "tcp"],
+    "8531": ["wsus", "https", "tcp"],
+    "8545": ["ethereum-rpc", "geth-http", "tcp"],
+    "8546": ["ethereum-ws", "geth-ws", "tcp"],
+    "8547": ["ethereum-graphql", "tcp"],
+    "8554": ["rtsp-alt", "tcp"],
+    "8600": ["consul-dns", "tcp", "udp"],
+    "8610": ["canon-bjnp", "udp"],
+    "8611": ["canon-bjnp", "udp"],
+    "8612": ["canon-bjnp", "tcp"],
+    "8649": ["ganglia-xml", "tcp"],
+    "8686": ["sun-as-jmxrmi", "tcp"],
+    "8754": ["adsb-mlat", "tcp"],
+    "8761": ["eureka", "tcp"],
+    "8765": ["openscape-uc", "tcp"],
+    "8767": ["teamspeak", "udp"],
+    "8787": ["msgsrvr", "rstudio", "tcp"],
+    "8800": ["http-alt", "tcp"],
+    "8801": ["zoom-phone-media", "udp"],
+    "8802": ["zoom-phone-media", "udp"],
+    "8834": ["nessus-https", "tcp"],
+    "8879": ["ibm-console", "tcp"],
+    "8880": ["cddbp-alt", "tcp"],
+    "8883": ["mqtt-ssl", "tls", "tcp"],
+    "8888": ["resilio-ui", "http-proxy", "tcp"],
+    "8889": ["burp-proxy", "tcp"],
+    "8899": ["solana-rpc", "tcp"],
+    "8900": ["solana-ws", "tcp"],
+    "8920": ["jellyfin-https", "tcp"],
+    "8983": ["solr", "tcp"],
+    "8989": ["hla-rti", "tcp"],
+    "9000": ["marlink-xchange", "tcp"],
+    "9001": ["efb-charts", "tcp"],
+    "9002": ["audiocodes-ovoc", "tcp"],
+    "9004": ["clickhouse-mysql", "tcp"],
+    "9005": ["clickhouse-postgres", "tcp"],
+    "9009": ["aisdispatcher", "tcp"],
+    "9010": ["aisdispatcher", "tcp"],
+    "9020": ["tambora", "tcp"],
+    "9030": ["tor-dirport", "tcp"],
+    "9040": ["tor-transport", "tcp"],
+    "9042": ["yugabyte-ycql", "tcp"],
+    "9043": ["ibm-was-admin", "tcp"],
+    "9050": ["tor-socks", "tcp"],
+    "9051": ["tor-control", "tcp"],
+    "9060": ["ibm-was-admin-http", "tcp"],
+    "9080": ["dgraph-alpha-grpc", "tcp"],
+    "9081": ["ibm-was", "tcp"],
+    "9082": ["ibm-was", "tcp"],
+    "9083": ["ibm-was", "tcp"],
+    "9090": ["dcgs-admin", "tcp"],
+    "9091": ["transmission-web", "tcp"],
+    "9092": ["kafka", "tcp"],
+    "9093": ["prometheus-alertmanager", "tcp"],
+    "9094": ["kafka", "tcp"],
+    "9099": ["calico-felix", "tcp"],
+    "9100": ["xerox-raw", "jetdirect", "tcp"],
+    "9101": ["jetdirect", "tcp"],
+    "9102": ["jetdirect", "tcp"],
+    "9103": ["jetdirect", "tcp"],
+    "9104": ["jetdirect", "tcp"],
+    "9105": ["jetdirect", "tcp"],
+    "9106": ["jetdirect", "tcp"],
+    "9107": ["jetdirect", "tcp"],
+    "9110": ["ssmp", "tcp"],
+    "9115": ["prometheus-blackbox", "tcp"],
+    "9142": ["scylla-cql-ssl", "tcp"],
+    "9150": ["tor-browser-socks", "tcp"],
+    "9151": ["tor-browser-control", "tcp"],
+    "9153": ["prometheus-coredns", "tcp"],
+    "9160": ["scylla-thrift", "tcp"],
+    "9180": ["scylla-prometheus", "tcp"],
+    "9191": ["sun-as-jpda", "tcp"],
+    "9200": ["aws-elasticsearch", "elasticsearch", "tcp"],
+    "9229": ["node-inspector", "tcp"],
+    "9300": ["aws-elasticsearch", "tcp"],
+    "9306": ["sphinx", "tcp"],
+    "9312": ["sphinxql", "tcp"],
+    "9332": ["litecoin-rpc", "tcp"],
+    "9333": ["litecoin-p2p", "tcp"],
+    "9353": ["ibm-mq-jms", "tcp"],
+    "9389": ["adws", "tcp"],
+    "9390": ["openvas-manager", "tcp"],
+    "9391": ["openvas-scanner", "tcp"],
+    "9392": ["openvas-admin", "tcp"],
+    "9402": ["ibm-ars", "tcp"],
+    "9411": ["zipkin", "tcp"],
+    "9418": ["git", "tcp"],
+    "9440": ["clickhouse-https", "tcp"],
+    "9443": ["cds-low", "tcp"],
+    "9470": ["as400-ssl-signon", "tcp"],
+    "9471": ["as400-ssl-portal", "tcp"],
+    "9472": ["as400-ssl-central", "tcp"],
+    "9473": ["as400-ssl-rmtcmd", "tcp"],
+    "9474": ["as400-ssl-filetransfer", "tcp"],
+    "9475": ["as400-ssl-netprint", "tcp"],
+    "9476": ["as400-ssl-database", "tcp"],
+    "9486": ["wazo-provd", "tcp"],
+    "9497": ["wazo-auth", "tcp"],
+    "9498": ["wazo-dird", "tcp"],
+    "9499": ["wazo-agentd", "tcp"],
+    "9500": ["wazo-calld", "tcp"],
+    "9530": ["sac-monitor", "tcp"],
+    "9595": ["pds", "tcp"],
+    "9600": ["logstash", "tcp"],
+    "9650": ["avalanche-http", "tcp"],
+    "9651": ["avalanche-staking", "tcp"],
+    "9696": ["neutron-api", "tcp"],
+    "9777": ["kodi-eventserver", "udp"],
+    "9800": ["webdav", "tcp"],
+    "9809": ["ibm-bootstrap", "tcp"],
+    "9870": ["hdfs-namenode", "tcp"],
+    "9876": ["sd", "tcp"],
+    "9888": ["cyborg-systems", "tcp"],
+    "9898": ["monkeycom", "tcp"],
+    "9929": ["nping-echo", "tcp"],
+    "9933": ["polkadot-rpc", "tcp"],
+    "9944": ["polkadot-ws", "tcp"],
+    "9960": ["origin-nat", "udp"],
+    "9961": ["origin-nat", "udp"],
+    "9962": ["origin-nat", "udp"],
+    "9963": ["origin-nat", "udp"],
+    "9964": ["origin-nat", "udp"],
+    "9981": ["tvheadend", "tcp"],
+    "9995": ["netflow", "udp"],
+    "9996": ["netflow", "udp"],
+    "9997": ["splunk-indexer", "tcp"],
+    "9998": ["jpids", "tcp"],
+    "9999": ["algo-multicast", "udp"],
+    "10000": ["dji-video", "udp"],
+    "10001": ["dji-ctrl", "udp"],
+    "10002": ["nmea2000-ip", "tcp", "udp"],
+    "10003": ["origin-nat", "udp"],
+    "10020": ["seatalkng", "udp"],
+    "10021": ["seatalkng", "udp"],
+    "10028": ["raymarine-seatalk", "udp"],
+    "10029": ["raymarine-seatalk", "udp"],
+    "10035": ["ibm-ora", "tcp"],
+    "10050": ["zabbix-agent", "tcp"],
+    "10051": ["zabbix-server", "tcp"],
+    "10080": ["tidb-status", "tcp"],
+    "10085": ["iridium-sbd-marine", "tcp"],
+    "10086": ["iridium-ptt", "tcp"],
+    "10110": ["jrc-nmea-std", "tcp"],
+    "10111": ["ecdis-enc", "tcp"],
+    "10152": ["ogn-data", "tcp"],
+    "10161": ["snmp-dtls", "udp"],
+    "10162": ["snmptrap-dtls", "udp"],
+    "10248": ["kubelet-healthz", "tcp"],
+    "10249": ["kube-proxy", "tcp"],
+    "10250": ["gcp-gke-kubelet", "kubelet", "tcp"],
+    "10251": ["kube-scheduler", "tcp"],
+    "10252": ["kube-controller-manager", "tcp"],
+    "10255": ["azure-aks-readonly", "tcp"],
+    "10256": ["azure-aks-healthz", "tcp"],
+    "10257": ["kube-controller-manager", "tcp"],
+    "10259": ["kube-scheduler", "tcp"],
+    "10500": ["ibm-tivoli", "tcp"],
+    "10800": ["fleet-bgan", "tcp"],
+    "10801": ["inmarsat-bgan", "tcp"],
+    "11211": ["aws-elasticache-memcached", "memcached", "tcp"],
+    "12000": ["panasonic-rtp-low", "rtp", "udp"],
+    "12001": ["nec-sl2100", "tcp"],
+    "12002": ["cucm-cti-qbe", "tcp"],
+    "12400": ["nintendo-p2p", "udp"],
+    "12798": ["cardano-submit", "tcp"],
+    "14000": ["kvh-mini-vsat", "tcp"],
+    "14001": ["kvh-mini-vsat", "tcp"],
+    "14002": ["uplay-p2p", "udp"],
+    "14003": ["uplay-p2p", "udp"],
+    "14004": ["uplay-p2p", "udp"],
+    "14005": ["uplay-p2p", "udp"],
+    "14006": ["uplay-p2p", "udp"],
+    "14007": ["uplay-p2p", "udp"],
+    "14008": ["uplay-p2p", "udp"],
+    "14250": ["jaeger-grpc", "tcp"],
+    "14268": ["jaeger-http", "tcp"],
+    "14440": ["kongsberg-em-data", "tcp"],
+    "14441": ["kongsberg-em-ctrl", "tcp"],
+    "14550": ["missionplanner-mavlink", "udp"],
+    "14551": ["mavlink-onboard", "udp"],
+    "14552": ["mavlink-sitl", "udp"],
+    "14553": ["mavlink-sitl", "udp"],
+    "14554": ["mavlink-camera", "udp"],
+    "14555": ["mavlink-camera", "udp"],
+    "14560": ["mavlink-rtk", "udp"],
+    "14580": ["ogn-aprs", "tcp"],
+    "15000": ["panasonic-rtp-high", "rtp", "udp"],
+    "15001": ["hla-rti", "tcp"],
+    "15063": ["ring-doorbell", "tcp"],
+    "15064": ["ring-doorbell", "udp"],
+    "15441": ["zeronet", "tcp"],
+    "15550": ["acarsdeco2", "tcp"],
+    "15672": ["rabbitmq-mgmt", "http", "tcp"],
+    "15999": ["vttablet-grpc", "tcp"],
+    "16000": ["vtgate-grpc", "tcp"],
+    "16384": ["fuze-rtp-low", "rtp", "udp"],
+    "16482": ["rtp", "udp"],
+    "16686": ["jaeger-ui", "tcp"],
+    "17500": ["dropbox-lan", "tcp", "udp"],
+    "17600": ["dropbox-lan", "tcp"],
+    "17603": ["dropbox-lan", "tcp"],
+    "18080": ["monero-p2p", "tcp"],
+    "18081": ["monero-rpc", "tcp"],
+    "18082": ["monero-wallet", "tcp"],
+    "18083": ["monero-rpc-ssl", "tcp"],
+    "18245": ["gps-tracking", "tcp"],
+    "18332": ["bitcoin-testnet-rpc", "tcp"],
+    "18333": ["bitcoin-testnet-p2p", "tcp"],
+    "18443": ["openscape-voice", "tcp"],
+    "18770": ["openscape-media", "udp"],
+    "18771": ["openscape-media", "udp"],
+    "18772": ["openscape-media", "udp"],
+    "18773": ["openscape-media", "udp"],
+    "19302": ["webrtc-google-stun", "udp"],
+    "19303": ["webrtc-google-stun", "udp"],
+    "19304": ["webrtc-google-stun", "udp"],
+    "19305": ["webrtc-google-stun", "udp"],
+    "19306": ["webrtc-google-stun", "udp"],
+    "19307": ["webrtc-google-stun", "udp"],
+    "19308": ["webrtc-google-stun", "udp"],
+    "19309": ["webrtc-google-stun", "udp"],
+    "20000": ["epygi-rtp", "rtp", "udp"],
+    "20001": ["ais-hub", "tcp"],
+    "20002": ["ais-hub", "tcp"],
+    "20160": ["tikv", "tcp"],
+    "20180": ["tikv-status", "tcp"],
+    "21000": ["furuno-ethernet", "tcp"],
+    "21001": ["furuno-ethernet", "tcp"],
+    "21027": ["syncthing-discovery", "udp"],
+    "22000": ["syncthing-listen", "tcp"],
+    "22555": ["dogecoin-p2p", "tcp"],
+    "22556": ["dogecoin-rpc", "tcp"],
+    "24000": ["polycom-video", "udp"],
+    "24001": ["polycom-video", "udp"],
+    "24002": ["polycom-video", "udp"],
+    "24003": ["polycom-video", "udp"],
+    "24224": ["fluentd", "tcp"],
+    "24225": ["fluentd-forward", "tcp"],
+    "25460": ["audiocodes-cdr", "tcp"],
+    "25461": ["audiocodes-cdr", "tcp"],
+    "25565": ["minecraft", "tcp"],
+    "25672": ["rabbitmq-cluster", "tcp"],
+    "26257": ["cockroachdb", "tcp"],
+    "26500": ["overwatch-p2p", "udp"],
+    "27000": ["citrix-lic-vendor", "tcp"],
+    "27001": ["citrix-lic", "tcp"],
+    "27002": ["citrix-lic", "tcp"],
+    "27003": ["citrix-lic", "tcp"],
+    "27004": ["citrix-lic", "tcp"],
+    "27005": ["csgo-client", "udp"],
+    "27006": ["citrix-lic", "tcp"],
+    "27007": ["citrix-lic", "tcp"],
+    "27008": ["citrix-lic", "tcp"],
+    "27009": ["citrix-lic", "tcp"],
+    "27010": ["steam", "tcp"],
+    "27014": ["cod-steam", "tcp"],
+    "27015": ["ark-steam", "udp"],
+    "27016": ["ark-steam", "udp"],
+    "27017": ["csgo-game", "udp"],
+    "27018": ["csgo-game", "udp"],
+    "27019": ["csgo-game", "udp"],
+    "27020": ["csgo-rcon", "tcp"],
+    "27030": ["steam-download", "tcp"],
+    "27031": ["steam", "udp"],
+    "27036": ["steam-streaming", "tcp", "udp"],
+    "27037": ["steam-streaming", "tcp"],
+    "27117": ["snort", "tcp"],
+    "28015": ["rust-game", "tcp", "udp"],
+    "28016": ["rust-rcon", "tcp"],
+    "28017": ["mongodb-http", "tcp"],
+    "28910": ["nintendo-gamespy", "udp"],
+    "29015": ["rethinkdb-cluster", "tcp"],
+    "29900": ["nintendo-gamespy", "udp"],
+    "29901": ["nintendo-gamespy", "udp"],
+    "29920": ["nintendo-gamespy", "udp"],
+    "30000": ["ooma-rtp", "rtp", "udp"],
+    "30001": ["modes-raw-in", "tcp"],
+    "30002": ["modes-raw-out", "tcp"],
+    "30003": ["modes-basestation", "tcp"],
+    "30004": ["modes-beast-in", "tcp"],
+    "30005": ["modes-beast-out", "tcp"],
+    "30006": ["modes-beast-mlat", "tcp"],
+    "30104": ["modes-beast-reduced", "tcp"],
+    "30303": ["ethereum-p2p", "geth-p2p", "tcp", "udp"],
+    "30304": ["ethereum-discovery", "udp"],
+    "30333": ["polkadot-p2p", "tcp"],
+    "30334": ["modes-planefinder", "tcp"],
+    "30500": ["omnipcx-ccd", "tcp"],
+    "30501": ["omnipcx-ccd", "tcp"],
+    "30978": ["uat978-raw", "tcp"],
+    "30979": ["uat978-json", "tcp"],
+    "30980": ["uat978-decoded", "tcp"],
+    "32400": ["plex", "tcp"],
+    "32410": ["plex-gdm", "udp"],
+    "32412": ["plex-gdm", "udp"],
+    "32413": ["plex-gdm", "udp"],
+    "32414": ["plex-gdm", "udp"],
+    "32469": ["plex-dlna", "tcp"],
+    "32767": ["fuze-rtp-high", "rtp", "udp"],
+    "32768": ["omnipcx-pbx", "tcp"],
+    "32769": ["omnipcx-pbx", "tcp"],
+    "32770": ["omnipcx-pbx", "tcp"],
+    "33434": ["webex-orl", "udp"],
+    "34962": ["profinet", "udp"],
+    "34963": ["profinet", "udp"],
+    "34964": ["profinet", "tcp", "udp"],
+    "35000": ["panasonic-kx-ns", "tcp"],
+    "35001": ["panasonic-kx-ns", "tcp"],
+    "37000": ["apex-game", "udp"],
+    "37015": ["apex-game", "udp"],
+    "37777": ["navico-mfd", "tcp"],
+    "38332": ["bitcoin-regtest-rpc", "tcp"],
+    "38333": ["bitcoin-regtest-p2p", "tcp"],
+    "39500": ["smartthings", "tcp"],
+    "39501": ["smartthings-callback", "tcp"],
+    "40000": ["rtp-range", "udp"],
+    "42000": ["apex-game", "udp"],
+    "42200": ["apex-game", "udp"],
+    "42424": ["adws", "tcp"],
+    "43110": ["zeronet-ui", "tcp"],
+    "44300": ["sap-https", "tcp"],
+    "44301": ["sap-https", "tcp"],
+    "44818": ["ethernetip-explicit", "tcp", "udp"],
+    "46750": ["avaya-tsapi", "tcp"],
+    "47001": ["ms-winrm", "tcp"],
+    "47808": ["bacnet", "udp"],
+    "49000": ["xplane-data", "udp"],
+    "49001": ["xplane-data", "udp"],
+    "49002": ["xplane-data", "udp"],
+    "49152": ["dynamic-rpc", "tcp"],
+    "49153": ["dynamic-rpc", "tcp"],
+    "49154": ["dynamic-rpc", "tcp"],
+    "49155": ["dynamic-rpc", "tcp"],
+    "49156": ["dynamic-rpc", "tcp"],
+    "49157": ["dynamic-rpc", "tcp"],
+    "50000": ["discord-voice", "udp"],
+    "50001": ["ogn-raw", "tcp"],
+    "50002": ["discord-voice", "udp"],
+    "50003": ["discord-voice", "udp"],
+    "50013": ["sap-sld", "tcp"],
+    "50014": ["sap-sld", "tcp"],
+    "51413": ["bittorrent", "transmission", "tcp"],
+    "51820": ["wireguard", "udp"],
+    "51827": ["homekit-accessory", "tcp"],
+    "54925": ["brother-scan", "udp"],
+    "54926": ["brother-scan", "tcp"],
+    "55000": ["wazuh-api", "tcp"],
+    "55001": ["wazuh-cluster", "tcp"],
+    "55555": ["resilio-sync", "tcp"],
+    "56000": ["tena", "tcp"],
+    "56001": ["tena", "tcp"],
+    "60000": ["dialpad-rtp-high", "rtp", "udp"],
+    "61455": ["gta-game", "udp"],
+    "61456": ["gta-game", "udp"],
+    "61457": ["gta-game", "udp"],
+    "61458": ["gta-game", "udp"],
+    "61613": ["stomp", "tcp"],
+    "61614": ["stomp-tls", "tcp"],
+    "61616": ["activemq", "tcp"],
+    "63093": ["foreflight-simlink", "tcp"],
+    "65534": ["audiocodes-rtp-high", "rtp", "udp"],
 }
 
 
@@ -708,7 +1897,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     Plus the usual time/expression/allowlist.
     """
     sig_field  = cfg.get("signature_field") or "tls.ja3"
-    port_field = cfg.get("port_field") or "port.dst"
+    port_field = cfg.get("port_field") or "port"
     min_sess   = int(cfg.get("min_sessions", 10))
     max_sigs   = int(cfg.get("max_sigs", 100))
     dominance  = float(cfg.get("dominance", 0.9))
@@ -808,7 +1997,7 @@ def do_port_scan_port_to_sig(cfg, progress=None):
     signatures.
     """
     sig_field  = cfg.get("signature_field") or "protocols"
-    port_field = cfg.get("port_field") or "port.dst"
+    port_field = cfg.get("port_field") or "port"
     ports      = cfg.get("ports_to_check") or list(PORT_EXPECTATIONS_DEFAULT.keys())
     expectations = cfg.get("port_expectations") or PORT_EXPECTATIONS_DEFAULT
     max_other  = int(cfg.get("max_other_sigs", 20))
@@ -1116,7 +2305,7 @@ def do_port_scan_byte_pattern(cfg, progress=None):
     if not patterns:
         raise ValueError("No patterns provided")
 
-    port_field = cfg.get("port_field") or "port.dst"
+    port_field = cfg.get("port_field") or "port"
     cleanup = cfg.get("cleanup_hunts", True)
     hunt_timeout = int(cfg.get("hunt_timeout", 300))
 
@@ -1436,79 +2625,45 @@ def do_load_settings():
     return store.get("current", {})
 
 
-def do_list_presets():
-    store = _load_store()
-    presets = store.get("presets", {})
-    return {"names": sorted(presets.keys())}
+def _preset_crud(store_key):
+    """Factory for preset CRUD operations on a given store key."""
+    def list_presets():
+        store = _load_store()
+        return {"names": sorted(store.get(store_key, {}).keys())}
 
-
-def do_save_preset(data):
-    name = (data.get("name") or "").strip()
-    if not name:
-        raise ValueError("Preset name is required")
-    cfg = data.get("config") or {}
-    store = _load_store()
-    store.setdefault("presets", {})[name] = _strip_password(cfg)
-    _save_store(store)
-    return {"ok": True, "name": name}
-
-
-def do_load_preset(data):
-    name = (data.get("name") or "").strip()
-    store = _load_store()
-    presets = store.get("presets", {})
-    if name not in presets:
-        raise ValueError(f"Preset not found: {name}")
-    return {"config": presets[name]}
-
-
-def do_delete_preset(data):
-    name = (data.get("name") or "").strip()
-    store = _load_store()
-    presets = store.get("presets", {})
-    if name in presets:
-        del presets[name]
-        store["presets"] = presets
+    def save_preset(data):
+        name = (data.get("name") or "").strip()
+        if not name:
+            raise ValueError("Preset name is required")
+        cfg = data.get("config") or {}
+        store = _load_store()
+        store.setdefault(store_key, {})[name] = _strip_password(cfg)
         _save_store(store)
-    return {"ok": True}
+        return {"ok": True, "name": name}
+
+    def load_preset(data):
+        name = (data.get("name") or "").strip()
+        store = _load_store()
+        presets = store.get(store_key, {})
+        if name not in presets:
+            raise ValueError(f"Preset not found: {name}")
+        return {"config": presets[name]}
+
+    def delete_preset(data):
+        name = (data.get("name") or "").strip()
+        store = _load_store()
+        presets = store.get(store_key, {})
+        if name in presets:
+            del presets[name]
+            store[store_key] = presets
+            _save_store(store)
+        return {"ok": True}
+
+    return list_presets, save_preset, load_preset, delete_preset
 
 
-# Port scan presets (separate namespace)
-def do_list_ps_presets():
-    store = _load_store()
-    presets = store.get("ps_presets", {})
-    return {"names": sorted(presets.keys())}
-
-
-def do_save_ps_preset(data):
-    name = (data.get("name") or "").strip()
-    cfg = data.get("config") or {}
-    if not name:
-        raise ValueError("Preset name is required")
-    store = _load_store()
-    store.setdefault("ps_presets", {})[name] = _strip_password(cfg)
-    _save_store(store)
-    return {"ok": True}
-
-
-def do_load_ps_preset(data):
-    name = (data.get("name") or "").strip()
-    store = _load_store()
-    presets = store.get("ps_presets", {})
-    if name not in presets:
-        raise ValueError(f"Preset not found: {name}")
-    return {"config": presets[name]}
-
-
-def do_delete_ps_preset(data):
-    name = (data.get("name") or "").strip()
-    store = _load_store()
-    presets = store.get("ps_presets", {})
-    if name in presets:
-        del presets[name]
-        store["ps_presets"] = presets
-        _save_store(store)
-    return {"ok": True}
+do_list_presets, do_save_preset, do_load_preset, do_delete_preset = _preset_crud("presets")
+do_list_ps_presets, do_save_ps_preset, do_load_ps_preset, do_delete_ps_preset = _preset_crud("ps_presets")
 
 
 # ==============================================================================
@@ -1694,6 +2849,8 @@ body.dark select option{background:var(--surface-2);color:var(--text-1)}
 .btn-primary:disabled{background:#9ca3af;cursor:not-allowed}
 .btn-outline{padding:5px 12px;background:var(--surface);border:1px solid var(--input-border);color:var(--text-2);border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600}
 .btn-outline:hover{border-color:#3b82f6;color:#3b82f6}
+.btn-sm{padding:3px 8px;background:var(--surface);border:1px solid var(--input-border);color:var(--text-3);border-radius:4px;cursor:pointer;font-size:.7rem}
+.btn-sm:hover{border-color:#3b82f6;color:#3b82f6}
 .btn-row{display:flex;gap:7px;margin-top:7px}
 .btn-row .btn-primary{flex:1}
 
@@ -2024,7 +3181,7 @@ tr.clean td{opacity:.75}
           <div class="srch-list"></div>
         </div>
         <label>Port field</label>
-        <input type="text" id="psPortField" value="port.dst">
+        <input type="text" id="psPortField" value="port">
         <div class="row2" style="margin-top:8px">
           <div>
             <label class="no-mt">Min sessions</label>
@@ -2062,7 +3219,7 @@ tr.clean td{opacity:.75}
           <div class="srch-list"></div>
         </div>
         <label>Port field</label>
-        <input type="text" id="psPortField2" value="port.dst">
+        <input type="text" id="psPortField2" value="port">
         <label>Ports to check <span style="font-weight:400;color:#9ca3af">(one per line)</span></label>
         <textarea id="psPortsList" rows="4" placeholder="53&#10;80&#10;443&#10;22"></textarea>
         <div class="btn-row" style="margin-top:4px">
@@ -2084,7 +3241,7 @@ tr.clean td{opacity:.75}
         </div>
         <label>Port field</label>
         <div class="srch-wrap" data-mode="ps-port3">
-          <input type="text" id="psPortField3" class="srch-inp" value="port.dst" placeholder="Select or search..."
+          <input type="text" id="psPortField3" class="srch-inp" value="port" placeholder="Select or search..."
                  oninput="_srchRender(this,arkimeFields,this.value)"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)">
@@ -3268,19 +4425,64 @@ function downloadReport() {
   URL.revokeObjectURL(a.href);
 }
 
-// ── CSV download ─────────────────────────────────────────────────────────────
+// ── Download Top/Rare as HTML ────────────────────────────────────────────────
 function dlCSV(field, label) {
   const r = lastResults[field];
   if (!r) return;
   const rows = label === "top" ? r.top_n : r.rare;
   const safe = field.replace(/\./g, "_");
   const ts   = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "").slice(0, 15);
-  const csv  = ["value,count", ...rows.map(row =>
-    `"${String(row.value).replace(/"/g, '""')}",${row.count}`
-  )].join("\r\n");
+  const totalCount = rows.reduce((sum, row) => sum + row.count, 0);
+  const maxCount = rows.length ? Math.max(...rows.map(x => x.count)) : 1;
+  const isDark = document.body.classList.contains("dark");
+  const labelCap = label === "top" ? "Top Values" : "Rare Values";
+
+  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
+  html += '<title>' + esc(field) + ' - ' + labelCap + '</title>';
+  html += '<style>';
+  html += 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:20px;';
+  html += isDark ? 'background:#1a1a2e;color:#e0e0e0;}' : 'background:#f5f5f5;color:#333;}';
+  html += '.container{max-width:900px;margin:0 auto;}';
+  html += 'h1{font-size:1.5em;margin-bottom:5px;}';
+  html += '.meta{font-size:0.85em;color:#888;margin-bottom:20px;}';
+  html += '.summary{display:flex;gap:20px;margin-bottom:20px;}';
+  html += '.stat{padding:12px 20px;border-radius:8px;' + (isDark ? 'background:#252542;' : 'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);') + '}';
+  html += '.stat-label{font-size:0.75em;text-transform:uppercase;color:#888;}';
+  html += '.stat-value{font-size:1.3em;font-weight:600;}';
+  html += 'table{width:100%;border-collapse:collapse;' + (isDark ? 'background:#252542;' : 'background:#fff;') + 'border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);}';
+  html += 'th,td{padding:10px 14px;text-align:left;border-bottom:1px solid ' + (isDark ? '#3a3a5a;' : '#eee;') + '}';
+  html += 'th{' + (isDark ? 'background:#1e1e36;' : 'background:#f9f9f9;') + 'font-weight:600;font-size:0.85em;text-transform:uppercase;}';
+  html += 'tr:last-child td{border-bottom:none;}';
+  html += 'tr:hover{' + (isDark ? 'background:#2a2a4a;' : 'background:#f5f5ff;') + '}';
+  html += '.bar-cell{width:150px;}';
+  html += '.bar{height:18px;border-radius:3px;' + (isDark ? 'background:#6366f1;' : 'background:#818cf8;') + '}';
+  html += '.count{font-weight:600;}';
+  html += '.pct{color:#888;font-size:0.9em;}';
+  html += '</style></head><body><div class="container">';
+  html += '<h1>' + esc(field) + ' - ' + labelCap + '</h1>';
+  html += '<div class="meta">Generated: ' + new Date().toLocaleString() + '</div>';
+  html += '<div class="summary">';
+  html += '<div class="stat"><div class="stat-label">Total Values</div><div class="stat-value">' + fmt(rows.length) + '</div></div>';
+  html += '<div class="stat"><div class="stat-label">Total Sessions</div><div class="stat-value">' + fmt(totalCount) + '</div></div>';
+  html += '</div>';
+  html += '<table><thead><tr><th>Value</th><th>Count</th><th>%</th><th class="bar-cell">Distribution</th></tr></thead><tbody>';
+
+  for (const row of rows) {
+    const pct = totalCount > 0 ? ((row.count / totalCount) * 100).toFixed(1) : '0.0';
+    const barW = maxCount > 0 ? Math.round((row.count / maxCount) * 100) : 0;
+    html += '<tr>';
+    html += '<td>' + esc(row.value) + '</td>';
+    html += '<td class="count">' + fmt(row.count) + '</td>';
+    html += '<td class="pct">' + pct + '%</td>';
+    html += '<td class="bar-cell"><div class="bar" style="width:' + barW + '%"></div></td>';
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div></body></html>';
+
   const a = document.createElement("a");
-  a.href     = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-  a.download = `arkime_${safe}_${label}_${ts}.csv`;
+  a.href     = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+  a.download = `arkime_${safe}_${label}_${ts}.html`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -3643,6 +4845,21 @@ function sortSessions(col, bodyId, expression, total) {
 function truncate(s, n) { return String(s).length > n ? String(s).slice(0, n-1) + "…" : String(s); }
 function jsStr(s) { return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n"); }
 
+// Sort port scan tables by session count
+function sortPsTable(tableId, order) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  rows.sort((a, b) => {
+    const aVal = parseInt(a.dataset.sessions || "0", 10);
+    const bVal = parseInt(b.dataset.sessions || "0", 10);
+    return order === "desc" ? bVal - aVal : aVal - bVal;
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+
 // ── Port Anomaly Scan ────────────────────────────────────────────────────────
 let lastPortScan = null;       // most recent mode-1 scan result (for baselining)
 let baselineList = [];
@@ -3772,19 +4989,19 @@ function getPortScanCfg() {
   const out = {...base, mode};
   if (mode === "sig_to_port") {
     out.signature_field = psSignatureField();
-    out.port_field      = document.getElementById("psPortField").value.trim() || "port.dst";
+    out.port_field      = document.getElementById("psPortField").value.trim() || "port";
     out.min_sessions    = parseInt(document.getElementById("psMinSessions").value) || 10;
     out.max_sigs        = parseInt(document.getElementById("psMaxSigs").value) || 100;
     out.dominance       = parseFloat(document.getElementById("psDominance").value) || 0.9;
     out.outlier_max     = parseInt(document.getElementById("psOutlierMax").value) || 3;
   } else if (mode === "port_to_sig") {
     out.signature_field   = psSignatureField() || "protocols";
-    out.port_field        = document.getElementById("psPortField2").value.trim() || "port.dst";
+    out.port_field        = document.getElementById("psPortField2").value.trim() || "port";
     out.ports_to_check    = parsePortsList();
     out.port_expectations = parseExpectations();
   } else if (mode === "host_diversity") {
     out.host_field            = document.getElementById("psHostField").value.trim() || "ip.src";
-    out.port_field            = document.getElementById("psPortField3").value.trim() || "port.dst";
+    out.port_field            = document.getElementById("psPortField3").value.trim() || "port";
     out.signature_field       = document.getElementById("psPinField").value.trim();
     out.pinned_signature_value= document.getElementById("psPinValue").value;
     out.min_sessions          = parseInt(document.getElementById("psMinSessions3").value) || 20;
@@ -3792,7 +5009,7 @@ function getPortScanCfg() {
     out.port_ratio_threshold  = parseFloat(document.getElementById("psPortRatio").value) || 0.4;
     out.max_hosts             = parseInt(document.getElementById("psMaxHosts").value) || 100;
   } else if (mode === "byte_pattern") {
-    out.port_field       = document.getElementById("psPortField4").value.trim() || "port.dst";
+    out.port_field       = document.getElementById("psPortField4").value.trim() || "port";
     out.patterns         = getBytePatterns();
     out.hunt_max_packets = parseInt(document.getElementById("psHuntMaxPackets").value) || 10000;
     out.hunt_timeout     = parseInt(document.getElementById("psHuntTimeout").value) || 300;
@@ -3991,10 +5208,10 @@ function renderSigToPort(data, cfg) {
   html += `</div>`;
 
   if (flagged.length) {
-    html += renderSigTable(flagged, "Flagged signatures", true, data.port_field);
+    html += renderSigTable(flagged, "Flagged signatures", true, data.port_field, false, "flaggedSigs");
   }
   if (clean.length) {
-    html += renderSigTable(clean, `Clean signatures (${clean.length})`, false, data.port_field, true);
+    html += renderSigTable(clean, `Clean signatures (${clean.length})`, false, data.port_field, true, "cleanSigs");
   }
   if (errored.length) {
     html += `<div class="card"><div class="card-title" style="color:#dc2626">Errors</div>`;
@@ -4004,10 +5221,13 @@ function renderSigToPort(data, cfg) {
   return html;
 }
 
-function renderSigTable(sigs, title, isFlagged, portField, collapsed) {
+function renderSigTable(sigs, title, isFlagged, portField, collapsed, tableId) {
   const openAttr = collapsed ? "" : " open";
-  const rowsHtml = sigs.map(s => {
-    const domBadge = `<span class="port-chip dom">${esc(s.dominant_port)}</span> <span style="color:var(--text-4);font-size:.72rem">${(s.dominant_share*100).toFixed(1)}%</span>`;
+  const withSessions = sigs.filter(s => (s.total || 0) > 0);
+  const zeroSessions = sigs.filter(s => (s.total || 0) === 0);
+
+  const buildRows = (arr) => arr.map(s => {
+    const domBadge = s.dominant_port ? `<span class="port-chip dom">${esc(s.dominant_port)}</span> <span style="color:var(--text-4);font-size:.72rem">${(s.dominant_share*100).toFixed(1)}%</span>` : '-';
     const outlierCells = (s.outliers || []).map(o => {
       const ri = rowData.length;
       rowData.push({field: portField, value: String(o.port), count: o.count, bucket: "ps_outlier", signature_field: dataSigFieldForRow(s), signature: s.signature});
@@ -4019,32 +5239,58 @@ function renderSigTable(sigs, title, isFlagged, portField, collapsed) {
       </span>`;
     }).join("") || `<span style="color:var(--text-4);font-size:.72rem">—</span>`;
 
-    return `<tr class="${isFlagged ? "" : "clean"}">
+    return `<tr class="${isFlagged ? "" : "clean"}" data-sessions="${s.total || 0}">
       <td class="val" style="max-width:320px">${esc(s.signature)}</td>
       <td class="num r">${fmt(s.total)}</td>
       <td>${domBadge}</td>
       <td class="num r">${fmt(s.distinct_ports)}</td>
-      <td class="num r" style="color:var(--text-3);font-size:.72rem" title="Shannon entropy over the port distribution; low = concentrated on one port, high = spread out">${s.entropy.toFixed(2)}</td>
+      <td class="num r" style="color:var(--text-3);font-size:.72rem" title="Shannon entropy over the port distribution; low = concentrated on one port, high = spread out">${(s.entropy || 0).toFixed(2)}</td>
       <td style="min-width:260px">${outlierCells}</td>
     </tr>`;
   }).join("");
 
-  return `<details class="card"${openAttr}>
+  let html = `<details class="card"${openAttr}>
     <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(title)}</summary>
-    <div style="margin-top:12px">
-      <table>
+    <div style="margin-top:12px">`;
+
+  if (withSessions.length) {
+    html += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
+      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
+      <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
+    </div>
+    <table id="${tableId}">
+      <thead><tr>
+        <th>Signature</th>
+        <th class="r">Sessions</th>
+        <th>Dominant port</th>
+        <th class="r">Distinct ports</th>
+        <th class="r" title="Shannon entropy">H</th>
+        <th>Outlier ports</th>
+      </tr></thead>
+      <tbody>${buildRows(withSessions)}</tbody>
+    </table>`;
+  }
+
+  if (zeroSessions.length) {
+    html += `<details style="margin-top:12px">
+      <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} entries with 0 sessions (click to expand)</summary>
+      <table style="margin-top:8px">
         <thead><tr>
           <th>Signature</th>
           <th class="r">Sessions</th>
           <th>Dominant port</th>
           <th class="r">Distinct ports</th>
-          <th class="r" title="Shannon entropy">H</th>
+          <th class="r">H</th>
           <th>Outlier ports</th>
         </tr></thead>
-        <tbody>${rowsHtml}</tbody>
+        <tbody>${buildRows(zeroSessions)}</tbody>
       </table>
-    </div>
-  </details>`;
+    </details>`;
+  }
+
+  html += `</div></details>`;
+  return html;
 }
 
 function dataSigFieldForRow(s) {
@@ -4112,7 +5358,7 @@ function renderPortToSig(data, cfg) {
       `<span class="port-chip dom"><span class="port-val">${esc(truncate(m.signature, 40))}</span> <span class="port-count">${m.count}</span></span>`
     ).join("") || `<span style="color:var(--text-4);font-size:.72rem">—</span>`;
 
-    return `<tr class="${p.flagged?"":"clean"}">
+    return `<tr class="${p.flagged?"":"clean"}" data-sessions="${p.total || 0}">
       <td class="num" style="font-weight:700">${esc(p.port)}</td>
       <td class="num r">${fmt(p.total || 0)}</td>
       <td style="font-size:.73rem">${p.expected.length ? p.expected.map(x=>`<code>${esc(x)}</code>`).join(" ") : '<span style="color:var(--text-4)">no expectation set</span>'}</td>
@@ -4121,23 +5367,44 @@ function renderPortToSig(data, cfg) {
     </tr>`;
   }).join("");
 
-  if (flagged.length) {
-    html += `<details class="card" open>
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Flagged ports</summary>
-      <div style="margin-top:12px"><table>
+  const renderPortTable = (arr, tableTitle, tableId, isOpen) => {
+    const withSessions = arr.filter(p => (p.total || 0) > 0);
+    const zeroSessions = arr.filter(p => (p.total || 0) === 0);
+    let thtml = `<details class="card"${isOpen ? " open" : ""}>
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(tableTitle)}</summary>
+      <div style="margin-top:12px">`;
+
+    if (withSessions.length) {
+      thtml += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
+      </div>
+      <table id="${tableId}">
         <thead><tr><th>Port</th><th class="r">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead>
-        <tbody>${buildRows(flagged)}</tbody>
-      </table></div>
-    </details>`;
+        <tbody>${buildRows(withSessions)}</tbody>
+      </table>`;
+    }
+
+    if (zeroSessions.length) {
+      thtml += `<details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} ports with 0 sessions (click to expand)</summary>
+        <table style="margin-top:8px">
+          <thead><tr><th>Port</th><th class="r">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead>
+          <tbody>${buildRows(zeroSessions)}</tbody>
+        </table>
+      </details>`;
+    }
+
+    thtml += `</div></details>`;
+    return thtml;
+  };
+
+  if (flagged.length) {
+    html += renderPortTable(flagged, "Flagged ports", "flaggedPorts", true);
   }
   if (clean.length) {
-    html += `<details class="card">
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Clean ports (${clean.length})</summary>
-      <div style="margin-top:12px"><table>
-        <thead><tr><th>Port</th><th class="r">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead>
-        <tbody>${buildRows(clean)}</tbody>
-      </table></div>
-    </details>`;
+    html += renderPortTable(clean, `Clean ports (${clean.length})`, "cleanPorts", false);
   }
   return html;
 }
@@ -4177,7 +5444,7 @@ function renderHostDiversity(data, cfg) {
     const topPorts = (h.top_ports || []).slice(0, 8).map(tp =>
       `<span class="port-chip"><span class="port-val">${esc(tp.port)}</span> <span class="port-count">${tp.count}</span></span>`
     ).join("");
-    return `<tr class="${h.flagged?"":"clean"}">
+    return `<tr class="${h.flagged?"":"clean"}" data-sessions="${h.total || 0}">
       <td class="val"><input type="checkbox" ${selection.has(ri)?"checked":""} onchange="toggleRowSel(${ri}, this.checked)" style="margin-right:6px">${esc(h.host)}</td>
       <td class="num r">${fmt(h.total)}</td>
       <td class="num r">${fmt(h.distinct_ports)}</td>
@@ -4191,23 +5458,44 @@ function renderHostDiversity(data, cfg) {
     </tr>`;
   }).join("");
 
-  if (flagged.length) {
-    html += `<details class="card" open>
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Flagged hosts</summary>
-      <div style="margin-top:12px"><table>
+  const renderHostTable = (arr, tableTitle, tableId, isOpen) => {
+    const withSessions = arr.filter(h => (h.total || 0) > 0);
+    const zeroSessions = arr.filter(h => (h.total || 0) === 0);
+    let thtml = `<details class="card"${isOpen ? " open" : ""}>
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(tableTitle)}</summary>
+      <div style="margin-top:12px">`;
+
+    if (withSessions.length) {
+      thtml += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
+      </div>
+      <table id="${tableId}">
         <thead><tr><th>Host</th><th class="r">Sessions</th><th class="r">Distinct ports</th><th class="r">Ratio</th><th class="r" title="Shannon entropy">H</th><th>Top ports</th><th></th></tr></thead>
-        <tbody>${buildRows(flagged)}</tbody>
-      </table></div>
-    </details>`;
+        <tbody>${buildRows(withSessions)}</tbody>
+      </table>`;
+    }
+
+    if (zeroSessions.length) {
+      thtml += `<details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} hosts with 0 sessions (click to expand)</summary>
+        <table style="margin-top:8px">
+          <thead><tr><th>Host</th><th class="r">Sessions</th><th class="r">Distinct ports</th><th class="r">Ratio</th><th class="r">H</th><th>Top ports</th><th></th></tr></thead>
+          <tbody>${buildRows(zeroSessions)}</tbody>
+        </table>
+      </details>`;
+    }
+
+    thtml += `</div></details>`;
+    return thtml;
+  };
+
+  if (flagged.length) {
+    html += renderHostTable(flagged, "Flagged hosts", "flaggedHosts", true);
   }
   if (clean.length) {
-    html += `<details class="card">
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Clean hosts (${clean.length})</summary>
-      <div style="margin-top:12px"><table>
-        <thead><tr><th>Host</th><th class="r">Sessions</th><th class="r">Distinct ports</th><th class="r">Ratio</th><th class="r">H</th><th>Top ports</th><th></th></tr></thead>
-        <tbody>${buildRows(clean)}</tbody>
-      </table></div>
-    </details>`;
+    html += renderHostTable(clean, `Clean hosts (${clean.length})`, "cleanHosts", false);
   }
   return html;
 }
@@ -4240,7 +5528,7 @@ function renderBytePattern(data, cfg) {
     }).join("");
     const expectedStr = (p.expected_ports || []).join(", ") || "(any)";
     const unexpectedPorts = (p.unexpected_ports || []).map(u => u.port).join(", ");
-    return `<tr class="${p.flagged ? "" : "clean"}">
+    return `<tr class="${p.flagged ? "" : "clean"}" data-sessions="${p.matched_sessions || 0}">
       <td><code style="font-size:.8rem">${esc(p.pattern)}</code></td>
       <td>${esc(p.type)}</td>
       <td class="num r">${fmt(p.matched_sessions || 0)}</td>
@@ -4250,24 +5538,45 @@ function renderBytePattern(data, cfg) {
     </tr>`;
   };
 
-  if (flagged.length) {
-    html += `<details class="card" open>
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Flagged patterns (${flagged.length})</summary>
-      <div style="margin-top:12px"><table>
+  const renderPatternTable = (arr, tableTitle, tableId, isOpen) => {
+    const withSessions = arr.filter(p => (p.matched_sessions || 0) > 0);
+    const zeroSessions = arr.filter(p => (p.matched_sessions || 0) === 0);
+    let thtml = `<details class="card"${isOpen ? " open" : ""}>
+      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">${esc(tableTitle)}</summary>
+      <div style="margin-top:12px">`;
+
+    if (withSessions.length) {
+      thtml += `<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:.75rem;color:var(--text-3)">Sort by sessions:</span>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'desc')">↓ Most</button>
+        <button class="btn-sm" onclick="sortPsTable('${tableId}', 'asc')">↑ Least</button>
+      </div>
+      <table id="${tableId}">
         <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
-        <tbody>${flagged.map(buildRow).join("")}</tbody>
-      </table></div>
-    </details>`;
+        <tbody>${withSessions.map(buildRow).join("")}</tbody>
+      </table>`;
+    }
+
+    if (zeroSessions.length) {
+      thtml += `<details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">${zeroSessions.length} patterns with 0 sessions (click to expand)</summary>
+        <table style="margin-top:8px">
+          <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
+          <tbody>${zeroSessions.map(buildRow).join("")}</tbody>
+        </table>
+      </details>`;
+    }
+
+    thtml += `</div></details>`;
+    return thtml;
+  };
+
+  if (flagged.length) {
+    html += renderPatternTable(flagged, `Flagged patterns (${flagged.length})`, "flaggedPatterns", true);
   }
 
   if (clean.length) {
-    html += `<details class="card">
-      <summary class="card-title" style="cursor:pointer;list-style:revert;padding:0">Clean patterns (${clean.length})</summary>
-      <div style="margin-top:12px"><table>
-        <thead><tr><th>Pattern</th><th>Type</th><th class="r">Sessions</th><th>Expected ports</th><th>Actual ports</th><th>Unexpected</th></tr></thead>
-        <tbody>${clean.map(buildRow).join("")}</tbody>
-      </table></div>
-    </details>`;
+    html += renderPatternTable(clean, `Clean patterns (${clean.length})`, "cleanPatterns", false);
   }
 
   if (errors.length) {
@@ -4655,180 +5964,143 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             self._send(404, "text/plain", b"Not found")
 
-    # ---- SSE streaming analyze ----
+    # ---- SSE streaming helpers ----
+
+    def _sse_stream(self, worker_fn, progress_key="field", on_done=None):
+        """Common SSE scaffolding: headers, queue, heartbeat loop."""
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+        except Exception:
+            return
+
+        def send_event(event, data):
+            try:
+                payload = f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                self.wfile.write(payload.encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                raise
+
+        import queue
+        q = queue.Queue()
+
+        def progress(done, total, item):
+            q.put(("progress", done, total, item))
+
+        def worker():
+            try:
+                result = worker_fn(progress)
+                q.put(("done", result))
+            except Exception as e:
+                q.put(("error", str(e)))
+
+        try:
+            t = threading.Thread(target=worker, daemon=True)
+            t.start()
+
+            while True:
+                try:
+                    item = q.get(timeout=15)
+                except queue.Empty:
+                    try:
+                        self.wfile.write(b": keepalive\n\n")
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError):
+                        return
+                    continue
+
+                kind = item[0]
+                if kind == "progress":
+                    _, done, total, cur = item
+                    send_event("progress", {"done": done, "total": total, progress_key: cur})
+                elif kind == "done":
+                    result = item[1]
+                    if on_done:
+                        on_done(result)
+                    send_event("result", result)
+                    return
+                elif kind == "error":
+                    send_event("error", {"error": item[1]})
+                    return
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception as e:
+            try:
+                send_event("error", {"error": str(e)})
+            except Exception:
+                pass
 
     def _handle_analyze_stream(self):
         length = int(self.headers.get("Content-Length", 0))
-        raw    = self.rfile.read(length) if length else b""
+        raw = self.rfile.read(length) if length else b""
         try:
             cfg = json.loads(raw) if raw else {}
         except json.JSONDecodeError:
             self._json(400, {"error": "Invalid JSON body"})
             return
 
-        # SSE headers
-        try:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Accel-Buffering", "no")
-            self.end_headers()
-        except Exception:
-            return
-
-        def send_event(event, data):
+        cached = CACHE.get("analyze", cfg)
+        if cached is not None:
             try:
-                payload = f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-                self.wfile.write(payload.encode("utf-8"))
-                self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                raise
-
-        try:
-            # Check cache first — still emit a single progress event then result
-            cached = CACHE.get("analyze", cfg)
-            if cached is not None:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("X-Accel-Buffering", "no")
+                self.end_headers()
                 total = len(cfg.get("fields") or [])
-                send_event("progress", {"done": total, "total": total, "field": None, "cached": True})
-                send_event("result", {"results": cached, "cached": True})
-                return
-
-            fields = [f for f in (cfg.get("fields") or []) if f.strip()]
-            if not fields:
-                send_event("result", {"results": []})
-                return
-
-            total = len(fields)
-
-            # Shared progress state; worker thread emits events from the main thread
-            # via a queue is overkill here — we'll use a lock + inline emit since
-            # the HTTP response is single-threaded per request.
-            import queue
-            q = queue.Queue()
-
-            def progress(done, t, field):
-                q.put(("progress", done, t, field))
-
-            def worker():
-                try:
-                    results = do_analyze(cfg, progress=progress)
-                    q.put(("done", results))
-                except Exception as e:
-                    q.put(("error", str(e)))
-
-            t = threading.Thread(target=worker, daemon=True)
-            t.start()
-
-            # Heartbeat / progress relay
-            while True:
-                try:
-                    item = q.get(timeout=15)
-                except queue.Empty:
-                    # Heartbeat comment to keep the connection alive
-                    try:
-                        self.wfile.write(b": keepalive\n\n")
-                        self.wfile.flush()
-                    except (BrokenPipeError, ConnectionResetError):
-                        return
-                    continue
-
-                kind = item[0]
-                if kind == "progress":
-                    _, done, tot, field = item
-                    send_event("progress", {"done": done, "total": tot, "field": field})
-                elif kind == "done":
-                    results = item[1]
-                    CACHE.put("analyze", cfg, results)
-                    send_event("result", {"results": results})
-                    return
-                elif kind == "error":
-                    send_event("error", {"error": item[1]})
-                    return
-        except (BrokenPipeError, ConnectionResetError):
-            return
-        except Exception as e:
-            try:
-                send_event("error", {"error": str(e)})
+                for ev, data in [
+                    ("progress", {"done": total, "total": total, "field": None, "cached": True}),
+                    ("result", {"results": cached, "cached": True}),
+                ]:
+                    payload = f"event: {ev}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                    self.wfile.write(payload.encode("utf-8"))
+                    self.wfile.flush()
             except Exception:
                 pass
+            return
 
-    # ---- SSE streaming port scan ----
+        fields = [f for f in (cfg.get("fields") or []) if f.strip()]
+        if not fields:
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(b'event: result\ndata: {"results": []}\n\n')
+                self.wfile.flush()
+            except Exception:
+                pass
+            return
+
+        def worker_fn(progress):
+            results = do_analyze(cfg, progress=progress)
+            return {"results": results}
+
+        def on_done(result):
+            CACHE.put("analyze", cfg, result.get("results"))
+
+        self._sse_stream(worker_fn, progress_key="field", on_done=on_done)
 
     def _handle_port_scan_stream_body(self, cfg):
-        """SSE-stream a port anomaly scan with per-signature progress."""
         mode = cfg.get("mode", "sig_to_port")
 
-        try:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Accel-Buffering", "no")
-            self.end_headers()
-        except Exception:
-            return
+        def worker_fn(progress):
+            if mode == "sig_to_port":
+                return do_port_scan_sig_to_port(cfg, progress=progress)
+            elif mode == "port_to_sig":
+                return do_port_scan_port_to_sig(cfg, progress=progress)
+            elif mode == "host_diversity":
+                return do_port_scan_host_diversity(cfg, progress=progress)
+            elif mode == "byte_pattern":
+                return do_port_scan_byte_pattern(cfg, progress=progress)
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
 
-        def send_event(event, data):
-            try:
-                payload = f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-                self.wfile.write(payload.encode("utf-8"))
-                self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                raise
-
-        try:
-            import queue
-            q = queue.Queue()
-
-            def progress(done, total, item):
-                q.put(("progress", done, total, item))
-
-            def worker():
-                try:
-                    if mode == "sig_to_port":
-                        res = do_port_scan_sig_to_port(cfg, progress=progress)
-                    elif mode == "port_to_sig":
-                        res = do_port_scan_port_to_sig(cfg, progress=progress)
-                    elif mode == "host_diversity":
-                        res = do_port_scan_host_diversity(cfg, progress=progress)
-                    elif mode == "byte_pattern":
-                        res = do_port_scan_byte_pattern(cfg, progress=progress)
-                    else:
-                        q.put(("error", f"Unknown mode: {mode}"))
-                        return
-                    q.put(("done", res))
-                except Exception as e:
-                    q.put(("error", str(e)))
-
-            t = threading.Thread(target=worker, daemon=True)
-            t.start()
-
-            while True:
-                try:
-                    item = q.get(timeout=15)
-                except queue.Empty:
-                    try:
-                        self.wfile.write(b": keepalive\n\n")
-                        self.wfile.flush()
-                    except (BrokenPipeError, ConnectionResetError):
-                        return
-                    continue
-                kind = item[0]
-                if kind == "progress":
-                    _, done, total, cur = item
-                    send_event("progress", {"done": done, "total": total, "item": cur})
-                elif kind == "done":
-                    send_event("result", item[1])
-                    return
-                elif kind == "error":
-                    send_event("error", {"error": item[1]})
-                    return
-        except (BrokenPipeError, ConnectionResetError):
-            return
-        except Exception as e:
-            try:
-                send_event("error", {"error": str(e)})
-            except Exception:
-                pass
+        self._sse_stream(worker_fn, progress_key="item")
 
     # ---- low-level ----
 

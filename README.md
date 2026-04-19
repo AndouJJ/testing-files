@@ -65,8 +65,6 @@ For detailed usage instructions, see [HOW_TO_USE.txt](HOW_TO_USE.txt).
 | File | Description |
 |------|-------------|
 | `arkime_web.py` | Main application |
-| `integration_test.py` | Integration tests |
-| `port_scan_tests.py` | Port scan feature tests |
 | `HOW_TO_USE.txt` | Detailed usage guide |
 
 ## License
