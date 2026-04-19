@@ -937,7 +937,7 @@ def do_port_scan_host_diversity(cfg, progress=None):
 
     def one(host, count):
         try:
-            pivot = f'(ip.src == "{_esc_val(host)}" || ip.dst == "{_esc_val(host)}")'
+            pivot = f'(ip.src == {host} || ip.dst == {host})'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_query_field, full)
             port_counts = {v: c for v, c in port_raw}
