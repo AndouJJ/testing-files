@@ -685,13 +685,11 @@ def _port_share_stats(port_counts):
 
 def do_port_scan_sig_to_port(cfg, progress=None):
     """
-    Mode 1: For each signature with >= min_sessions hits, fetch its port
-    distribution and score it.
+    Mode 1: For each signature, find its port distribution and flag those
+    where traffic is concentrated on one port but has outliers on others.
 
-    cfg keys used:
-      signature_field, port_field, min_sessions, max_sigs,
-      dominance, outlier_max
-    Plus the usual time/expression/allowlist.
+    Instead of querying per-signature (which fails for complex string values),
+    we query per-port to get signatures, then pivot the data.
     """
     sig_field  = cfg.get("signature_field") or "tls.ja3"
     port_field = cfg.get("port_field") or "port"
@@ -703,92 +701,79 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     _ = _time_params(cfg)  # validate
     base_expr = _build_expr(cfg)
 
-    # Step A: get the top signatures by volume
-    sigs_raw = _fetch_unique(cfg, sig_field, base_expr)
-    eligible = [(v, c) for v, c in sigs_raw if c >= min_sess]
-    truncated = len(eligible) > max_sigs
-    eligible = eligible[:max_sigs]
+    # Step A: get top ports by volume
+    ports_raw = _fetch_unique(cfg, port_field, base_expr)
+    top_ports = [p for p, c in ports_raw[:200]]  # limit to top 200 ports
 
-    if not eligible:
+    if not top_ports:
         return {
             "mode": "sig_to_port",
             "signature_field": sig_field,
             "port_field": port_field,
             "signatures": [],
-            "total_signatures_seen": len(sigs_raw),
+            "total_signatures_seen": 0,
             "eligible_signatures": 0,
-            "truncated": truncated,
+            "truncated": False,
         }
 
-    # Step B: for each signature, fetch its port distribution
-    def one(sig_val, sig_count):
-        try:
-            # Arkime wildcard syntax: field == *value* (wildcards outside quotes)
-            pivot = f'{sig_field} == *"{_esc_val(sig_val)}"*'
-            full  = f'{pivot} && {base_expr}' if base_expr else pivot
-            port_raw = _fetch_unique(cfg, port_field, full)
-            # Debug: if no results, include the query for troubleshooting
-            if not port_raw:
-                return {
-                    "signature": sig_val,
-                    "total": 0,
-                    "dominant_port": None,
-                    "dominant_share": 0,
-                    "distinct_ports": 0,
-                    "entropy": 0,
-                    "ports": [],
-                    "outliers": [],
-                    "flagged": False,
-                    "error": f"No port data. Query: {pivot[:100]}...",
-                }
-            port_counts = {v: c for v, c in port_raw}
-            dom, dom_share, entropy, total = _port_share_stats(port_counts)
-            ports_sorted = sorted(port_counts.items(), key=lambda kv: kv[1], reverse=True)
-            outliers = [(p, c) for p, c in ports_sorted
-                        if p != dom and c <= outlier_max]
-            flagged = (
-                dom_share >= dominance and len(outliers) > 0
-                and total >= min_sess
-            )
-            return {
-                "signature":       sig_val,
-                "total":           total,
-                "dominant_port":   dom,
-                "dominant_share":  dom_share,
-                "distinct_ports":  len(port_counts),
-                "entropy":         entropy,
-                "ports":           [{"port": p, "count": c} for p, c in ports_sorted],
-                "outliers":        [{"port": p, "count": c} for p, c in outliers],
-                "flagged":         flagged,
-            }
-        except Exception as e:
-            return {
-                "signature": sig_val,
-                "total": 0,
-                "dominant_port": None,
-                "dominant_share": 0,
-                "distinct_ports": 0,
-                "entropy": 0,
-                "ports": [],
-                "outliers": [],
-                "flagged": False,
-                "error": str(e),
-            }
+    # Step B: for each port, get signature distribution
+    # Build a map: signature -> {port: count}
+    sig_to_ports = {}  # sig_val -> {port: count}
+    sig_totals = {}    # sig_val -> total count
 
-    workers = min(len(eligible), int(cfg.get("max_workers", 6)))
-    results = []
-    done = 0
-    total_n = len(eligible)
+    def fetch_port(port):
+        try:
+            pivot = f'{port_field} == {port}'
+            full = f'{pivot} && {base_expr}' if base_expr else pivot
+            return port, _fetch_unique(cfg, sig_field, full)
+        except Exception:
+            return port, []
+
+    total_ports = len(top_ports)
+    done_count = 0
     if progress:
-        progress(0, total_n, None)
+        progress(0, total_ports, None)
+
+    workers = min(len(top_ports), int(cfg.get("max_workers", 6)))
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = {ex.submit(one, v, c): v for v, c in eligible}
+        futures = {ex.submit(fetch_port, p): p for p in top_ports}
         for fut in as_completed(futures):
-            r = fut.result()
-            results.append(r)
-            done += 1
+            port, sigs = fut.result()
+            for sig_val, count in sigs:
+                if sig_val not in sig_to_ports:
+                    sig_to_ports[sig_val] = {}
+                    sig_totals[sig_val] = 0
+                sig_to_ports[sig_val][port] = sig_to_ports[sig_val].get(port, 0) + count
+                sig_totals[sig_val] += count
+            done_count += 1
             if progress:
-                progress(done, total_n, r.get("signature"))
+                progress(done_count, total_ports, f"port {port}")
+
+    # Step C: filter and analyze each signature
+    eligible = [(sig, sig_totals[sig]) for sig in sig_to_ports if sig_totals[sig] >= min_sess]
+    eligible.sort(key=lambda x: -x[1])
+    truncated = len(eligible) > max_sigs
+    eligible = eligible[:max_sigs]
+
+    results = []
+    for sig_val, total in eligible:
+        port_counts = sig_to_ports[sig_val]
+        dom, dom_share, entropy, _ = _port_share_stats(port_counts)
+        ports_sorted = sorted(port_counts.items(), key=lambda kv: -kv[1])
+        outliers = [(p, c) for p, c in ports_sorted if p != dom and c <= outlier_max]
+        flagged = dom_share >= dominance and len(outliers) > 0
+
+        results.append({
+            "signature":       sig_val,
+            "total":           total,
+            "dominant_port":   dom,
+            "dominant_share":  dom_share,
+            "distinct_ports":  len(port_counts),
+            "entropy":         entropy,
+            "ports":           [{"port": p, "count": c} for p, c in ports_sorted],
+            "outliers":        [{"port": p, "count": c} for p, c in outliers],
+            "flagged":         flagged,
+        })
 
     # Sort: flagged first (by total desc), then by distinct_ports desc
     results.sort(key=lambda r: (
@@ -801,7 +786,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
         "signature_field":        sig_field,
         "port_field":             port_field,
         "signatures":             results,
-        "total_signatures_seen":  len(sigs_raw),
+        "total_signatures_seen":  len(sig_to_ports),
         "eligible_signatures":    len(eligible),
         "truncated":              truncated,
         "thresholds": {
