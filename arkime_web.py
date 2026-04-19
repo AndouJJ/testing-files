@@ -178,40 +178,6 @@ def _post_with_session(cfg, path, body=None):
         return json.loads(r.read().decode("utf-8", errors="replace"))
 
 
-def _post(cfg, path, body=None):
-    """POST JSON to Arkime and return parsed JSON response."""
-    url = cfg["url"].rstrip("/") + path
-    timeout = int(cfg.get("timeout_secs", 1800))
-    ctx = _ssl_ctx(cfg)
-    data = json.dumps(body).encode("utf-8") if body else b"{}"
-
-    if cfg.get("auth_type") == "digest":
-        user = cfg.get("username", "") or ""
-        pwd  = cfg.get("password", "") or ""
-        pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-        pwd_mgr.add_password(None, url, user, pwd)
-        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
-        if ctx:
-            opener = urllib.request.build_opener(
-                auth_handler,
-                urllib.request.HTTPSHandler(context=ctx),
-            )
-        else:
-            opener = urllib.request.build_opener(auth_handler)
-        req = urllib.request.Request(url, data=data, method="POST")
-        req.add_header("Content-Type", "application/json")
-        with opener.open(req, timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8", errors="replace"))
-
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Content-Type", "application/json")
-    h = _auth_header(cfg)
-    if h:
-        req.add_header("Authorization", h)
-    with urllib.request.urlopen(req, context=ctx, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8", errors="replace"))
-
-
 def _parse_dt(s):
     for fmt in (
         "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
@@ -609,7 +575,6 @@ def do_anomaly_hints(cfg):
 def _load_port_expectations():
     """Load port expectations from IANA CSV file, with Arkime-specific additions."""
     import csv
-    import os
     
     csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "service-names-port-numbers.csv")
     
@@ -3764,12 +3729,6 @@ function renderPortScanMode() {
     const panel = document.getElementById("results");
     renderPortScanResults(panel, cached.data, cached.cfg);
   }
-}
-
-function syncPsCustom(selId, customId) {
-  const sel = document.getElementById(selId);
-  const custom = document.getElementById(customId);
-  custom.style.display = sel.value === "__custom__" ? "" : "none";
 }
 
 function psSignatureField() {
