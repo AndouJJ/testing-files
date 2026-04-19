@@ -240,14 +240,10 @@ def _time_params(cfg):
 def _esc_val(v):
     """
     Escape a value for use inside an Arkime expression string literal.
-    Arkime expressions use double-quoted strings; backslash, double-quote,
-    and forward-slash (regex delimiter) need escaping.
+    For == (exact match), only backslash and double-quote need escaping.
+    The value is treated as a literal string, not a regex.
     """
-    s = str(v)
-    s = s.replace("\\", "\\\\")
-    s = s.replace('"', '\\"')
-    s = s.replace("/", "\\/")
-    return s
+    return str(v).replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _build_expr(cfg):
@@ -751,7 +747,18 @@ def do_port_scan_sig_to_port(cfg, progress=None):
                 "flagged":         flagged,
             }
         except Exception as e:
-            return {"signature": sig_val, "total": sig_count, "error": str(e)}
+            return {
+                "signature": sig_val,
+                "total": 0,
+                "dominant_port": None,
+                "dominant_share": 0,
+                "distinct_ports": 0,
+                "entropy": 0,
+                "ports": [],
+                "outliers": [],
+                "flagged": False,
+                "error": str(e),
+            }
 
     workers = min(len(eligible), int(cfg.get("max_workers", 6)))
     results = []
@@ -4049,8 +4056,9 @@ function renderSigTable(sigs, title, isFlagged, portField, collapsed, tableId) {
       </span>`;
     }).join("") || `<span style="color:var(--text-4);font-size:.72rem">—</span>`;
 
+    const errBadge = s.error ? `<span style="color:#dc2626;font-size:.7rem" title="${esc(s.error)}">⚠ ${esc(s.error)}</span>` : "";
     return `<tr class="${isFlagged ? "" : "clean"}" data-sessions="${s.total || 0}">
-      <td class="val" style="max-width:320px">${esc(s.signature)}</td>
+      <td class="val" style="max-width:320px">${esc(s.signature)}${errBadge ? "<br>"+errBadge : ""}</td>
       <td class="num r">${fmt(s.total)}</td>
       <td>${domBadge}</td>
       <td class="num r">${fmt(s.distinct_ports)}</td>
