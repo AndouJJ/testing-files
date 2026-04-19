@@ -1204,7 +1204,10 @@ def do_port_scan_byte_pattern(cfg, progress=None):
                             port_counts[int(p)] = port_counts.get(int(p), 0) + 1
 
                 ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
-                unexpected = [(p, c) for p, c in ports_sorted if p not in expected_ports]
+                # Only flag ports below the ephemeral range as unexpected
+                # Ephemeral ports (49152-65535) are typically random source ports
+                unexpected = [(p, c) for p, c in ports_sorted
+                              if p not in expected_ports and p < 49152]
                 flagged = len(unexpected) > 0 if expected_ports else False
 
                 results.append({
