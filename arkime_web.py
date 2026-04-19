@@ -714,6 +714,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
             "total_signatures_seen": 0,
             "eligible_signatures": 0,
             "truncated": False,
+            "error": f"No ports found for field '{port_field}'",
         }
 
     # Step B: for each port, get signature distribution
@@ -725,20 +726,23 @@ def do_port_scan_sig_to_port(cfg, progress=None):
         try:
             pivot = f'{port_field} == {port}'
             full = f'{pivot} && {base_expr}' if base_expr else pivot
-            return port, _fetch_unique(cfg, sig_field, full)
-        except Exception:
-            return port, []
+            return port, _fetch_unique(cfg, sig_field, full), None
+        except Exception as e:
+            return port, [], str(e)
 
     total_ports = len(top_ports)
     done_count = 0
     if progress:
         progress(0, total_ports, None)
 
+    errors = []
     workers = min(len(top_ports), int(cfg.get("max_workers", 6)))
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {ex.submit(fetch_port, p): p for p in top_ports}
         for fut in as_completed(futures):
-            port, sigs = fut.result()
+            port, sigs, err = fut.result()
+            if err:
+                errors.append(f"port {port}: {err}")
             for sig_val, count in sigs:
                 if sig_val not in sig_to_ports:
                     sig_to_ports[sig_val] = {}
@@ -781,7 +785,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
         -(r.get("total") or 0),
     ))
 
-    return {
+    result = {
         "mode":                   "sig_to_port",
         "signature_field":        sig_field,
         "port_field":             port_field,
@@ -789,6 +793,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
         "total_signatures_seen":  len(sig_to_ports),
         "eligible_signatures":    len(eligible),
         "truncated":              truncated,
+        "ports_queried":          len(top_ports),
         "thresholds": {
             "min_sessions": min_sess,
             "max_sigs":     max_sigs,
@@ -796,6 +801,9 @@ def do_port_scan_sig_to_port(cfg, progress=None):
             "outlier_max":  outlier_max,
         },
     }
+    if errors:
+        result["errors"] = errors[:10]  # limit to first 10 errors
+    return result
 
 
 def do_port_scan_port_to_sig(cfg, progress=None):
@@ -4008,7 +4016,7 @@ function renderSigToPort(data, cfg) {
     <div class="card-top">
       <div>
         <div class="card-title">Signature &rarr; Port (mode 1)</div>
-        <div class="card-sub">signature field: <code>${esc(data.signature_field)}</code>, port field: <code>${esc(data.port_field)}</code></div>
+        <div class="card-sub">signature field: <code>${esc(data.signature_field)}</code>, port field: <code>${esc(data.port_field)}</code>, ports queried: ${data.ports_queried || 0}</div>
       </div>
     </div>
     <div class="stats">
@@ -4017,6 +4025,13 @@ function renderSigToPort(data, cfg) {
       <div class="stat"><div class="stat-val" style="color:#dc2626">${fmt(flagged.length)}</div><div class="stat-lbl">Flagged</div></div>
       <div class="stat"><div class="stat-val">${fmt(clean.length)}</div><div class="stat-lbl">Clean</div></div>
     </div>`;
+
+  if (data.error) {
+    html += `<div class="err-card">${esc(data.error)}</div>`;
+  }
+  if (data.errors && data.errors.length) {
+    html += `<div class="err-card">Query errors:<br>${data.errors.map(e => esc(e)).join("<br>")}</div>`;
+  }
 
   if (data.truncated) {
     html += `<div class="err-card" style="margin-bottom:10px;border-left:3px solid #f59e0b;background:var(--anom-bg);color:var(--anom-fg);border-color:transparent">
