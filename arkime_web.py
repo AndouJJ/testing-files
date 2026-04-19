@@ -693,7 +693,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
       dominance, outlier_max
     Plus the usual time/expression/allowlist.
     """
-    sig_field  = cfg.get("signature_field") or "tls.ja3"
+    sig_field  = cfg.get("signature_field") or "http.useragent"
     port_field = cfg.get("port_field") or "port"
     min_sess   = int(cfg.get("min_sessions", 10))
     max_sigs   = int(cfg.get("max_sigs", 100))
@@ -869,14 +869,12 @@ def do_port_scan_port_to_sig(cfg, progress=None):
 
 def do_port_scan_host_diversity(cfg, progress=None):
     """
-    Mode 3: For each src IP seen in the window (optionally filtered to a
-    signature), compute distinct dst ports used and the port-per-session
-    ratio. Flag hosts where the ratio is high and distinct ports exceeds
-    a threshold.
+    Mode 3: For each IP seen in the window (both src and dst), compute
+    distinct ports used and the port-per-session ratio. Flag hosts where
+    the ratio is high and distinct ports exceeds a threshold.
     """
     sig_field   = cfg.get("signature_field") or ""   # optional
     port_field  = cfg.get("port_field") or "port.dst"
-    host_field  = cfg.get("host_field") or "ip.src"
     min_sess    = int(cfg.get("min_sessions", 20))
     min_ports   = int(cfg.get("min_distinct_ports", 10))
     ratio_thresh= float(cfg.get("port_ratio_threshold", 0.4))
@@ -891,7 +889,15 @@ def do_port_scan_host_diversity(cfg, progress=None):
         sig_clause = f'{sig_field} == "{_esc_val(pinned)}"'
         base_expr = f'{sig_clause} && {base_expr}' if base_expr else sig_clause
 
-    hosts_raw = _fetch_unique(cfg, host_field, base_expr)
+    # Query both ip.src and ip.dst, merge counts
+    hosts_src = {h: c for h, c in _fetch_unique(cfg, "ip.src", base_expr)}
+    hosts_dst = {h: c for h, c in _fetch_unique(cfg, "ip.dst", base_expr)}
+    merged = {}
+    for h, c in hosts_src.items():
+        merged[h] = merged.get(h, 0) + c
+    for h, c in hosts_dst.items():
+        merged[h] = merged.get(h, 0) + c
+    hosts_raw = sorted(merged.items(), key=lambda kv: -kv[1])
     eligible = [(h, c) for h, c in hosts_raw if c >= min_sess][:max_hosts]
     truncated = len([h for h, c in hosts_raw if c >= min_sess]) > max_hosts
 
@@ -900,14 +906,14 @@ def do_port_scan_host_diversity(cfg, progress=None):
             "mode":            "host_diversity",
             "signature_field": sig_field,
             "port_field":      port_field,
-            "host_field":      host_field,
+            "host_field":      "ip.src OR ip.dst",
             "hosts":           [],
             "truncated":       truncated,
         }
 
     def one(host, count):
         try:
-            pivot = f'{host_field} == "{_esc_val(host)}"'
+            pivot = f'(ip.src == "{_esc_val(host)}" || ip.dst == "{_esc_val(host)}")'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_field, full)
             port_counts = {v: c for v, c in port_raw}
@@ -955,7 +961,7 @@ def do_port_scan_host_diversity(cfg, progress=None):
         "mode":            "host_diversity",
         "signature_field": sig_field,
         "port_field":      port_field,
-        "host_field":      host_field,
+        "host_field":      "ip.src OR ip.dst",
         "hosts":           results,
         "truncated":       truncated,
         "thresholds": {
@@ -1968,9 +1974,9 @@ tr.clean td{opacity:.75}
       </select>
 
       <div id="psMode_sig_to_port">
-        <label>Signature field</label>
+        <label>Grouping field <span style="font-weight:normal;color:var(--text-3)">(group traffic by this field)</span></label>
         <div class="srch-wrap" data-mode="ps-sig1">
-          <input type="text" id="psSigField" class="srch-inp" value="tls.ja3" placeholder="Select or search..."
+          <input type="text" id="psSigField" class="srch-inp" value="http.useragent" placeholder="Select or search..."
                  oninput="_srchRender(this,arkimeFields,this.value)"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)">
@@ -2000,8 +2006,8 @@ tr.clean td{opacity:.75}
           </div>
         </div>
         <div style="font-size:.7rem;color:var(--text-3);margin-top:8px;line-height:1.5">
-          Flags signatures where one port handles &ge; dominance share AND
-          outlier ports have &le; outlier-max sessions.
+          Groups by field value (e.g. user agent, JA3, protocol), finds which port each
+          value normally uses, then flags when it appears on unusual ports.
         </div>
       </div>
 
@@ -2027,14 +2033,8 @@ tr.clean td{opacity:.75}
       </div>
 
       <div id="psMode_host_diversity" style="display:none">
-        <label>Host field</label>
-        <div class="srch-wrap" data-mode="ps-host">
-          <input type="text" id="psHostField" class="srch-inp" value="ip.src" placeholder="Select or search..."
-                 oninput="_srchRender(this,arkimeFields,this.value)"
-                 onfocus="_srchRender(this,arkimeFields,this.value)"
-                 onblur="_srchClose(this)">
-          <button class="srch-arrow" onmousedown="event.preventDefault()" onclick="_srchToggle(this.previousElementSibling,arkimeFields)">&#9662;</button>
-          <div class="srch-list"></div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-bottom:8px">
+          Checks both source and destination IPs for scanning/beaconing behavior.
         </div>
         <label>Port field</label>
         <div class="srch-wrap" data-mode="ps-port3">
@@ -2571,7 +2571,6 @@ function applyPsConfig(cfg) {
   }
   // Mode 3: host_diversity
   else if (mode === "host_diversity") {
-    if (cfg.host_field) document.getElementById("psHostField").value = cfg.host_field;
     if (cfg.port_field) document.getElementById("psPortField3").value = cfg.port_field;
     if (cfg.signature_field) document.getElementById("psPinField").value = cfg.signature_field;
     if (cfg.pinned_signature_value) document.getElementById("psPinValue").value = cfg.pinned_signature_value;
@@ -3660,6 +3659,7 @@ function sortPsTable(tableId, order) {
 // ── Port Anomaly Scan ────────────────────────────────────────────────────────
 let lastPortScan = null;       // most recent mode-1 scan result (for baselining)
 let baselineList = [];
+const portScanCache = {};      // per-mode result cache: { mode: { data, cfg } }
 
 function togglePortScan() {
   const body = document.getElementById("portScanBody");
@@ -3729,6 +3729,13 @@ function renderPortScanMode() {
   document.getElementById("psMode_host_diversity").style.display= mode === "host_diversity"? "" : "none";
   document.getElementById("psMode_byte_pattern").style.display  = mode === "byte_pattern"  ? "" : "none";
   document.getElementById("psBaselineBlock").style.display      = mode === "sig_to_port"   ? "" : "none";
+
+  // Restore cached results for this mode if available
+  const cached = portScanCache[mode];
+  if (cached) {
+    const panel = document.getElementById("results");
+    renderPortScanResults(panel, cached.data, cached.cfg);
+  }
 }
 
 function syncPsCustom(selId, customId) {
@@ -3797,7 +3804,6 @@ function getPortScanCfg() {
     out.ports_to_check    = parsePortsList();
     out.port_expectations = parseExpectations();
   } else if (mode === "host_diversity") {
-    out.host_field            = document.getElementById("psHostField").value.trim() || "ip.src";
     out.port_field            = document.getElementById("psPortField3").value.trim() || "port";
     out.signature_field       = document.getElementById("psPinField").value.trim();
     out.pinned_signature_value= document.getElementById("psPinValue").value;
@@ -3841,6 +3847,9 @@ async function runPortScan() {
     const data = await runPortScanStreaming(cfg);
     if (data.error) { showError(panel, "Port scan failed", data.error); return; }
     renderPortScanResults(panel, data, cfg);
+
+    // Cache result for this mode
+    portScanCache[cfg.mode] = { data, cfg };
 
     // Mode 1: if a baseline is selected, compare
     if (cfg.mode === "sig_to_port") {
@@ -4225,7 +4234,7 @@ function renderHostDiversity(data, cfg) {
     <div class="card-top">
       <div>
         <div class="card-title">Host port diversity (mode 3)</div>
-        <div class="card-sub">host field: <code>${esc(data.host_field)}</code>, port field: <code>${esc(data.port_field)}</code>${data.signature_field ? `, pinned signature: <code>${esc(data.signature_field)}</code>` : ""}</div>
+        <div class="card-sub">checking: <code>ip.src</code> + <code>ip.dst</code>, port field: <code>${esc(data.port_field)}</code>${data.signature_field ? `, pinned signature: <code>${esc(data.signature_field)}</code>` : ""}</div>
       </div>
     </div>
     <div class="stats">
@@ -4237,7 +4246,7 @@ function renderHostDiversity(data, cfg) {
 
   const buildRows = (arr) => arr.map(h => {
     const ri = rowData.length;
-    rowData.push({field: data.host_field, value: h.host, count: h.total, bucket: "ps_host"});
+    rowData.push({field: "ip", value: h.host, count: h.total, bucket: "ps_host"});
     const topPorts = (h.top_ports || []).slice(0, 8).map(tp =>
       `<span class="port-chip"><span class="port-val">${esc(tp.port)}</span> <span class="port-count">${tp.count}</span></span>`
     ).join("");
