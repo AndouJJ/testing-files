@@ -4558,12 +4558,184 @@ async function runBaselineCompare(name, scanResult) {
 }
 
 function downloadPortScanReport() {
-  if (!lastPortScan) { toast("No scan to export", "err"); return; }
+  // Find the most recent scan from cache
+  const modes = ["sig_to_port", "port_to_sig", "host_diversity", "byte_pattern"];
+  let data = null;
+  let cfg = null;
+  for (const m of modes) {
+    if (portScanCache[m]) {
+      data = portScanCache[m].data;
+      cfg = portScanCache[m].cfg;
+      break;
+    }
+  }
+  if (!data) { toast("No scan to export", "err"); return; }
+
   const ts = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "").slice(0, 15);
-  const blob = new Blob([JSON.stringify(lastPortScan, null, 2)], {type: "application/json"});
+  const genTime = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  const mode = data.mode || "unknown";
+
+  const styles = `
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; color: #333; }
+    h1 { color: #1e3a5f; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+    h2 { color: #1e3a5f; margin-top: 30px; }
+    h3 { color: #374151; margin-top: 20px; }
+    .meta { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .meta p { margin: 5px 0; }
+    .meta strong { color: #1e3a5f; }
+    .summary { display: flex; gap: 20px; flex-wrap: wrap; margin: 15px 0; }
+    .stat { background: #e0e7ff; padding: 12px 20px; border-radius: 6px; text-align: center; min-width: 100px; }
+    .stat-val { font-size: 1.5rem; font-weight: bold; color: #3730a3; }
+    .stat-lbl { font-size: .8rem; color: #6366f1; }
+    .stat-flagged .stat-val { color: #dc2626; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 25px 0; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th { background: #1e3a5f; color: #fff; padding: 10px 12px; text-align: left; font-size: .85rem; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: .85rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .val { font-family: monospace; word-break: break-all; }
+    .num { text-align: right; }
+    .section { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .flagged { background: #fef2f2; }
+    .flagged td:first-child { border-left: 3px solid #dc2626; }
+    .port-chip { display: inline-block; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; margin: 2px; font-size: .8rem; font-family: monospace; }
+    .port-chip.unexpected { background: #fee2e2; color: #991b1b; }
+    .footer { text-align: center; color: #9ca3af; font-size: .8rem; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+  `;
+
+  let html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Luxray Port Scan Report - ' + genTime + '</title><style>' + styles + '</style></head><body>';
+  html += '<h1>Luxray Port Anomaly Scan Report</h1>';
+  html += '<div class="meta">';
+  html += '<p><strong>Generated:</strong> ' + genTime + '</p>';
+  html += '<p><strong>Mode:</strong> ' + esc(mode) + '</p>';
+  if (cfg) {
+    html += '<p><strong>Time Range:</strong> ' + esc(cfg.start_date || '') + ' to ' + esc(cfg.end_date || '') + '</p>';
+    if (cfg.expression) html += '<p><strong>Expression:</strong> <code>' + esc(cfg.expression) + '</code></p>';
+  }
+  html += '</div>';
+
+  if (mode === "sig_to_port") {
+    const sigs = data.signatures || [];
+    const flagged = sigs.filter(s => s.flagged);
+    const clean = sigs.filter(s => !s.flagged);
+    html += '<div class="summary">';
+    html += '<div class="stat"><div class="stat-val">' + fmt(data.total_signatures_seen || 0) + '</div><div class="stat-lbl">Signatures Seen</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + fmt(sigs.length) + '</div><div class="stat-lbl">Scanned</div></div>';
+    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(flagged.length) + '</div><div class="stat-lbl">Flagged</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + fmt(clean.length) + '</div><div class="stat-lbl">Clean</div></div>';
+    html += '</div>';
+
+    if (flagged.length) {
+      html += '<div class="section"><h3>Flagged Signatures (' + flagged.length + ')</h3>';
+      html += '<table><thead><tr><th>Signature</th><th class="num">Sessions</th><th>Dominant Port</th><th class="num">Distinct Ports</th><th>Outlier Ports</th></tr></thead><tbody>';
+      for (const s of flagged) {
+        const outliers = (s.outliers || []).map(o => '<span class="port-chip unexpected">' + o.port + ' (' + o.count + ')</span>').join(' ');
+        html += '<tr class="flagged"><td class="val">' + esc(s.signature) + '</td><td class="num">' + fmt(s.total) + '</td><td>' + (s.dominant_port || '-') + ' (' + ((s.dominant_share||0)*100).toFixed(1) + '%)</td><td class="num">' + fmt(s.distinct_ports) + '</td><td>' + (outliers || '-') + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    if (clean.length) {
+      html += '<div class="section"><h3>Clean Signatures (' + clean.length + ')</h3>';
+      html += '<table><thead><tr><th>Signature</th><th class="num">Sessions</th><th>Dominant Port</th><th class="num">Distinct Ports</th></tr></thead><tbody>';
+      for (const s of clean) {
+        html += '<tr><td class="val">' + esc(s.signature) + '</td><td class="num">' + fmt(s.total) + '</td><td>' + (s.dominant_port || '-') + ' (' + ((s.dominant_share||0)*100).toFixed(1) + '%)</td><td class="num">' + fmt(s.distinct_ports) + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+  } else if (mode === "port_to_sig") {
+    const ports = data.ports || [];
+    const flagged = ports.filter(p => p.flagged);
+    const clean = ports.filter(p => !p.flagged);
+    html += '<div class="summary">';
+    html += '<div class="stat"><div class="stat-val">' + fmt(ports.length) + '</div><div class="stat-lbl">Ports Checked</div></div>';
+    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(flagged.length) + '</div><div class="stat-lbl">Flagged</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + fmt(clean.length) + '</div><div class="stat-lbl">Clean</div></div>';
+    html += '</div>';
+
+    if (flagged.length) {
+      html += '<div class="section"><h3>Flagged Ports (' + flagged.length + ')</h3>';
+      html += '<table><thead><tr><th>Port</th><th class="num">Sessions</th><th>Expected</th><th>Matching</th><th>Unexpected</th></tr></thead><tbody>';
+      for (const p of flagged) {
+        const matching = (p.matches || []).map(m => '<span class="port-chip">' + esc(m.signature) + ' (' + m.count + ')</span>').join(' ');
+        const unexpected = (p.unexpected || []).map(u => '<span class="port-chip unexpected">' + esc(u.signature) + ' (' + u.count + ')</span>').join(' ');
+        html += '<tr class="flagged"><td>' + p.port + '</td><td class="num">' + fmt(p.total) + '</td><td>' + (p.expected || []).join(', ') + '</td><td>' + (matching || '-') + '</td><td>' + (unexpected || '-') + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    if (clean.length) {
+      html += '<div class="section"><h3>Clean Ports (' + clean.length + ')</h3>';
+      html += '<table><thead><tr><th>Port</th><th class="num">Sessions</th><th>Expected</th><th>Matching</th></tr></thead><tbody>';
+      for (const p of clean) {
+        const matching = (p.matches || []).map(m => '<span class="port-chip">' + esc(m.signature) + ' (' + m.count + ')</span>').join(' ');
+        html += '<tr><td>' + p.port + '</td><td class="num">' + fmt(p.total) + '</td><td>' + (p.expected || []).join(', ') + '</td><td>' + (matching || '-') + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+  } else if (mode === "host_diversity") {
+    const hosts = data.hosts || [];
+    const flagged = hosts.filter(h => h.flagged);
+    const clean = hosts.filter(h => !h.flagged && !h.error);
+    html += '<div class="summary">';
+    html += '<div class="stat"><div class="stat-val">' + fmt(hosts.length) + '</div><div class="stat-lbl">Hosts Scanned</div></div>';
+    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(flagged.length) + '</div><div class="stat-lbl">Flagged</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + fmt(clean.length) + '</div><div class="stat-lbl">Clean</div></div>';
+    html += '</div>';
+
+    if (flagged.length) {
+      html += '<div class="section"><h3>Flagged Hosts (' + flagged.length + ')</h3>';
+      html += '<table><thead><tr><th>Host</th><th class="num">Sessions</th><th class="num">Distinct Ports</th><th class="num">Ratio</th><th>Top Ports</th></tr></thead><tbody>';
+      for (const h of flagged) {
+        const topPorts = (h.top_ports || []).slice(0, 5).map(tp => '<span class="port-chip">' + tp.port + ' (' + tp.count + ')</span>').join(' ');
+        html += '<tr class="flagged"><td class="val">' + esc(h.host) + '</td><td class="num">' + fmt(h.total) + '</td><td class="num">' + fmt(h.distinct_ports) + '</td><td class="num">' + ((h.ratio||0)*100).toFixed(1) + '%</td><td>' + topPorts + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    if (clean.length) {
+      html += '<div class="section"><h3>Clean Hosts (' + clean.length + ')</h3>';
+      html += '<table><thead><tr><th>Host</th><th class="num">Sessions</th><th class="num">Distinct Ports</th><th class="num">Ratio</th><th>Top Ports</th></tr></thead><tbody>';
+      for (const h of clean) {
+        const topPorts = (h.top_ports || []).slice(0, 5).map(tp => '<span class="port-chip">' + tp.port + ' (' + tp.count + ')</span>').join(' ');
+        html += '<tr><td class="val">' + esc(h.host) + '</td><td class="num">' + fmt(h.total) + '</td><td class="num">' + fmt(h.distinct_ports) + '</td><td class="num">' + ((h.ratio||0)*100).toFixed(1) + '%</td><td>' + topPorts + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+  } else if (mode === "byte_pattern") {
+    const patterns = data.patterns || [];
+    const flagged = patterns.filter(p => p.flagged);
+    const clean = patterns.filter(p => !p.flagged && !p.error);
+    html += '<div class="summary">';
+    html += '<div class="stat"><div class="stat-val">' + fmt(patterns.length) + '</div><div class="stat-lbl">Patterns</div></div>';
+    html += '<div class="stat stat-flagged"><div class="stat-val">' + fmt(flagged.length) + '</div><div class="stat-lbl">Flagged</div></div>';
+    html += '<div class="stat"><div class="stat-val">' + fmt(clean.length) + '</div><div class="stat-lbl">Clean</div></div>';
+    html += '</div>';
+
+    if (flagged.length) {
+      html += '<div class="section"><h3>Flagged Patterns (' + flagged.length + ')</h3>';
+      html += '<table><thead><tr><th>Pattern</th><th>Type</th><th class="num">Sessions</th><th>Expected Ports</th><th>Actual Ports</th><th>Unexpected</th></tr></thead><tbody>';
+      for (const p of flagged) {
+        const actualPorts = (p.ports || []).slice(0, 10).map(pt => '<span class="port-chip">' + pt.port + ' (' + pt.count + ')</span>').join(' ');
+        const unexpPorts = (p.unexpected_ports || []).slice(0, 10).map(pt => '<span class="port-chip unexpected">' + pt.port + ' (' + pt.count + ')</span>').join(' ');
+        html += '<tr class="flagged"><td class="val">' + esc(p.pattern) + '</td><td>' + esc(p.type) + '</td><td class="num">' + fmt(p.matched_sessions) + '</td><td>' + (p.expected_ports || []).join(', ') + '</td><td>' + actualPorts + '</td><td>' + unexpPorts + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    if (clean.length) {
+      html += '<div class="section"><h3>Clean Patterns (' + clean.length + ')</h3>';
+      html += '<table><thead><tr><th>Pattern</th><th>Type</th><th class="num">Sessions</th><th>Expected Ports</th><th>Actual Ports</th></tr></thead><tbody>';
+      for (const p of clean) {
+        const actualPorts = (p.ports || []).slice(0, 10).map(pt => '<span class="port-chip">' + pt.port + ' (' + pt.count + ')</span>').join(' ');
+        html += '<tr><td class="val">' + esc(p.pattern) + '</td><td>' + esc(p.type) + '</td><td class="num">' + fmt(p.matched_sessions) + '</td><td>' + (p.expected_ports || []).join(', ') + '</td><td>' + actualPorts + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+  }
+
+  html += '<div class="footer">Generated by Luxray - Network Traffic Analyzer</div></body></html>';
+
+  const blob = new Blob([html], {type: "text/html"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `arkime_port_scan_${ts}.json`;
+  a.download = 'luxray_port_scan_' + ts + '.html';
   a.click();
   URL.revokeObjectURL(a.href);
 }
