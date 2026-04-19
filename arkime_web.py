@@ -241,24 +241,12 @@ def _esc_val(v):
     """
     Escape a value for use inside an Arkime expression string literal.
     Arkime expressions use double-quoted strings; backslash, double-quote,
-    and special regex/expression characters must be escaped.
+    and forward-slash (regex delimiter) need escaping.
     """
     s = str(v)
     s = s.replace("\\", "\\\\")
     s = s.replace('"', '\\"')
-    s = s.replace("(", "\\(")
-    s = s.replace(")", "\\)")
-    s = s.replace("[", "\\[")
-    s = s.replace("]", "\\]")
-    s = s.replace("*", "\\*")
-    s = s.replace("?", "\\?")
-    s = s.replace("+", "\\+")
-    s = s.replace(".", "\\.")
-    s = s.replace("^", "\\^")
-    s = s.replace("$", "\\$")
-    s = s.replace("|", "\\|")
-    s = s.replace("{", "\\{")
-    s = s.replace("}", "\\}")
+    s = s.replace("/", "\\/")
     return s
 
 
@@ -709,7 +697,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
       dominance, outlier_max
     Plus the usual time/expression/allowlist.
     """
-    sig_field  = cfg.get("signature_field") or "http.useragent"
+    sig_field  = cfg.get("signature_field") or "tls.ja3"
     port_field = cfg.get("port_field") or "port"
     min_sess   = int(cfg.get("min_sessions", 10))
     max_sigs   = int(cfg.get("max_sigs", 100))
@@ -1992,7 +1980,7 @@ tr.clean td{opacity:.75}
       <div id="psMode_sig_to_port">
         <label>Grouping field <span style="font-weight:normal;color:var(--text-3)">(group traffic by this field)</span></label>
         <div class="srch-wrap" data-mode="ps-sig1">
-          <input type="text" id="psSigField" class="srch-inp" value="http.useragent" placeholder="Select or search..."
+          <input type="text" id="psSigField" class="srch-inp" value="tls.ja3" placeholder="Select or search..."
                  oninput="_srchRender(this,arkimeFields,this.value)"
                  onfocus="_srchRender(this,arkimeFields,this.value)"
                  onblur="_srchClose(this)">
