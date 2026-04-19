@@ -723,8 +723,8 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     # Step B: for each signature, fetch its port distribution
     def one(sig_val, sig_count):
         try:
-            # Use CONTAINS operator - works better for text fields
-            pivot = f'{sig_field} CONTAINS "{_esc_val(sig_val)}"'
+            # Arkime wildcard syntax: field == *value* (wildcards outside quotes)
+            pivot = f'{sig_field} == *"{_esc_val(sig_val)}"*'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
             port_raw = _fetch_unique(cfg, port_field, full)
             # Debug: if no results, include the query for troubleshooting
