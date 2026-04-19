@@ -714,7 +714,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
             "total_signatures_seen": 0,
             "eligible_signatures": 0,
             "truncated": False,
-            "error": f"No ports found for field '{port_field}'",
+            "warning": f"No ports found for field '{port_field}'",
         }
 
     # Step B: for each port, get signature distribution
@@ -4026,11 +4026,11 @@ function renderSigToPort(data, cfg) {
       <div class="stat"><div class="stat-val">${fmt(clean.length)}</div><div class="stat-lbl">Clean</div></div>
     </div>`;
 
-  if (data.error) {
-    html += `<div class="err-card">${esc(data.error)}</div>`;
+  if (data.warning) {
+    html += `<div class="err-card" style="border-left-color:#f59e0b">${esc(data.warning)}</div>`;
   }
   if (data.errors && data.errors.length) {
-    html += `<div class="err-card">Query errors:<br>${data.errors.map(e => esc(e)).join("<br>")}</div>`;
+    html += `<div class="err-card" style="border-left-color:#f59e0b">Query errors:<br>${data.errors.map(e => esc(e)).join("<br>")}</div>`;
   }
 
   if (data.truncated) {
