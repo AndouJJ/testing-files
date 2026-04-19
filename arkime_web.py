@@ -932,11 +932,14 @@ def do_port_scan_host_diversity(cfg, progress=None):
             "truncated":       truncated,
         }
 
+    # Use port.dst for unique query (Arkime's unique API needs a specific field)
+    port_query_field = "port.dst" if port_field == "port" else port_field
+
     def one(host, count):
         try:
             pivot = f'(ip.src == "{_esc_val(host)}" || ip.dst == "{_esc_val(host)}")'
             full  = f'{pivot} && {base_expr}' if base_expr else pivot
-            port_raw = _fetch_unique(cfg, port_field, full)
+            port_raw = _fetch_unique(cfg, port_query_field, full)
             port_counts = {v: c for v, c in port_raw}
             total = sum(port_counts.values())
             distinct = len(port_counts)
@@ -4257,6 +4260,7 @@ function psSessionsUnexpected(ri) {
 function renderHostDiversity(data, cfg) {
   const hosts = data.hosts || [];
   const flagged = hosts.filter(h => h.flagged);
+  const errored = hosts.filter(h => h.error);
   const clean   = hosts.filter(h => !h.flagged && !h.error);
 
   let html = `<div class="card">
@@ -4331,6 +4335,11 @@ function renderHostDiversity(data, cfg) {
   }
   if (clean.length) {
     html += renderHostTable(clean, `Clean hosts (${clean.length})`, "cleanHosts", false);
+  }
+  if (errored.length) {
+    html += `<div class="card"><div class="card-title" style="color:#dc2626">Errors (${errored.length})</div>`;
+    html += errored.map(h => `<div style="font-size:.78rem;color:var(--text-3);margin-top:6px"><code>${esc(h.host)}</code>: ${esc(h.error)}</div>`).join("");
+    html += `</div>`;
   }
   return html;
 }
