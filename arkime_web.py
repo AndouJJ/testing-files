@@ -61,6 +61,24 @@ from datetime import datetime
 
 
 # ==============================================================================
+# Utility functions
+# ==============================================================================
+
+def _effective_workers(cfg, task_count):
+    """
+    Calculate optimal worker count based on:
+    - User config (max_workers)
+    - System capabilities (CPU count)
+    - Task count (no point having more workers than tasks)
+    """
+    cpu_count = os.cpu_count() or 4
+    # Default to 2x CPU count for I/O-bound work, capped at 24
+    default_workers = min(cpu_count * 2, 24)
+    user_max = int(cfg.get("max_workers", default_workers))
+    return min(max(1, user_max), task_count)
+
+
+# ==============================================================================
 # Arkime API layer
 # ==============================================================================
 
@@ -77,12 +95,23 @@ def _auth_header(cfg):
     return ""
 
 
-def _ssl_ctx(cfg):
+def _ssl_ctx(cfg, force_context=False):
+    """
+    Create SSL context for HTTPS connections.
+
+    If skip_tls_verify is set, returns a context that doesn't verify certificates
+    (needed for airgapped environments with self-signed certs).
+
+    If force_context is True, always returns a context (default context when
+    not skipping verification). This is needed for opener-based requests.
+    """
     if cfg.get("skip_tls_verify"):
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         return ctx
+    if force_context:
+        return ssl.create_default_context()
     return None
 
 
@@ -122,60 +151,107 @@ def _post_with_session(cfg, path, body=None):
     base_url = cfg["url"].rstrip("/")
     url = base_url + path
     timeout = int(cfg.get("timeout_secs", 1800))
-    ctx = _ssl_ctx(cfg)
+    is_https = base_url.lower().startswith("https://")
+    # For opener-based requests, always get an SSL context for HTTPS
+    ctx = _ssl_ctx(cfg, force_context=is_https)
     data = json.dumps(body).encode("utf-8") if body else b"{}"
 
     cj = http.cookiejar.CookieJar()
     cookie_handler = urllib.request.HTTPCookieProcessor(cj)
+
+    # Build handlers list
+    handlers = [cookie_handler]
 
     if cfg.get("auth_type") == "digest":
         user = cfg.get("username", "") or ""
         pwd  = cfg.get("password", "") or ""
         pwd_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
         pwd_mgr.add_password(None, base_url, user, pwd)
-        auth_handler = urllib.request.HTTPDigestAuthHandler(pwd_mgr)
-        if ctx:
-            opener = urllib.request.build_opener(
-                auth_handler,
-                cookie_handler,
-                urllib.request.HTTPSHandler(context=ctx),
-            )
-        else:
-            opener = urllib.request.build_opener(auth_handler, cookie_handler)
-    else:
-        if ctx:
-            opener = urllib.request.build_opener(
-                cookie_handler,
-                urllib.request.HTTPSHandler(context=ctx),
-            )
-        else:
-            opener = urllib.request.build_opener(cookie_handler)
+        handlers.append(urllib.request.HTTPDigestAuthHandler(pwd_mgr))
 
-    # Step 1: Hit main page to get ARKIME-COOKIE
-    init_req = urllib.request.Request(base_url + "/")
+    # Always add HTTPSHandler for HTTPS URLs to ensure proper SSL handling
+    if is_https and ctx:
+        handlers.append(urllib.request.HTTPSHandler(context=ctx))
+
+    opener = urllib.request.build_opener(*handlers)
+
+    # Step 1: Establish session by hitting an authenticated endpoint
+    # Try /api/user first (preferred), fall back to main page
     h = _auth_header(cfg)
-    if h and cfg.get("auth_type") != "digest":
-        init_req.add_header("Authorization", h)
-    with opener.open(init_req, timeout=timeout) as r:
-        r.read()
+    session_endpoints = ["/api/user", "/"]
+    for endpoint in session_endpoints:
+        init_req = urllib.request.Request(base_url + endpoint)
+        if h and cfg.get("auth_type") != "digest":
+            init_req.add_header("Authorization", h)
+        try:
+            with opener.open(init_req, timeout=timeout) as r:
+                r.read()
+            # Check if we got a cookie
+            if any(c.name.upper() in ("ARKIME-COOKIE", "MOLOCH-COOKIE") for c in cj):
+                break
+        except urllib.error.HTTPError:
+            continue  # Try next endpoint
 
     # Step 2: Extract cookie value for x-arkime-cookie header
+    # Try multiple cookie name variants (case-insensitive) for compatibility
     cookie_val = None
+    cookie_raw = None  # Keep raw value too in case unquoting breaks it
     for c in cj:
-        if c.name == "ARKIME-COOKIE":
+        if c.name.upper() == "ARKIME-COOKIE":
+            cookie_raw = c.value
             cookie_val = urllib.parse.unquote(c.value)
             break
+    # Fallback: try MOLOCH-COOKIE for older Arkime/Moloch versions
+    if not cookie_val:
+        for c in cj:
+            if c.name.upper() == "MOLOCH-COOKIE":
+                cookie_raw = c.value
+                cookie_val = urllib.parse.unquote(c.value)
+                break
+
+    if not cookie_val:
+        # Debug: list what cookies we did receive
+        cookie_names = [c.name for c in cj]
+        raise RuntimeError(
+            f"Could not obtain ARKIME-COOKIE from server. "
+            f"Cookies received: {cookie_names or 'none'}. "
+            f"Check that your Arkime URL is correct and authentication succeeded."
+        )
 
     # Step 3: POST with cookie header
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Content-Type", "application/json")
-    if cookie_val:
-        req.add_header("x-arkime-cookie", cookie_val)
-    if h and cfg.get("auth_type") != "digest":
-        req.add_header("Authorization", h)
+    # Try with decoded cookie value first, then raw if that fails with 403
+    cookie_variants = [cookie_val]
+    if cookie_raw and cookie_raw != cookie_val:
+        cookie_variants.append(cookie_raw)
 
-    with opener.open(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8", errors="replace"))
+    last_error = None
+    for cv in cookie_variants:
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("x-arkime-cookie", cv)
+        if h and cfg.get("auth_type") != "digest":
+            req.add_header("Authorization", h)
+
+        try:
+            with opener.open(req, timeout=timeout) as r:
+                return json.loads(r.read().decode("utf-8", errors="replace"))
+        except urllib.error.HTTPError as e:
+            if e.code == 403 and cv != cookie_variants[-1]:
+                # Try next cookie variant
+                last_error = e
+                continue
+            if e.code == 403:
+                raise RuntimeError(
+                    f"HTTP 403 Forbidden from Arkime Hunt API. "
+                    f"This usually means CSRF validation failed or missing permissions. "
+                    f"Ensure your Arkime user has 'packetSearch' or 'huntEnabled' role. "
+                    f"Cookie obtained: {'yes' if cookie_val else 'no'}"
+                ) from e
+            raise
+
+    # Should not reach here, but just in case
+    if last_error:
+        raise last_error
 
 
 def _parse_dt(s):
@@ -239,9 +315,11 @@ def _fetch_unique(cfg, field, expression):
     params.update(_time_params(cfg))
     if expression:
         params["expression"] = expression
+    # Default to 50K limit for billion-session environments; 0 means use default
+    DEFAULT_MAX_UNIQUE = 50000
     max_unique = int(cfg.get("max_unique", 0))
-    if max_unique > 0:
-        params["maxvaluesperfield"] = str(max_unique)
+    effective_limit = max_unique if max_unique > 0 else DEFAULT_MAX_UNIQUE
+    params["maxvaluesperfield"] = str(effective_limit)
 
     body, last_err = None, None
     for path in ("/api/unique", "/unique.txt"):
@@ -310,7 +388,7 @@ def do_analyze(cfg, progress=None):
     if not fields:
         return []
 
-    workers = min(max(1, len(fields)), int(cfg.get("max_workers", 6)))
+    workers = _effective_workers(cfg, len(fields))
     results_by_field = {}
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -510,12 +588,27 @@ def do_sessions(cfg):
 # Anomaly hinting — pulls source-IP concentration for rare values in one batch
 # ==============================================================================
 
+# Rate limiting for anomaly hints to prevent overwhelming Arkime
+_anomaly_rate_lock = threading.Lock()
+_anomaly_last_batch = 0.0
+_ANOMALY_MIN_INTERVAL = 0.5  # seconds between batches
+
+
 def do_anomaly_hints(cfg):
     """
     For a list of (field, value) pairs, return the source-IP concentration for
     each — i.e. how many distinct src IPs contacted that value, and the top
     src IP's share. High concentration + low volume = classic beaconing shape.
     """
+    global _anomaly_last_batch
+
+    # Rate limit: ensure minimum interval between batches
+    with _anomaly_rate_lock:
+        elapsed = time.time() - _anomaly_last_batch
+        if elapsed < _ANOMALY_MIN_INTERVAL:
+            time.sleep(_ANOMALY_MIN_INTERVAL - elapsed)
+        _anomaly_last_batch = time.time()
+
     pairs = cfg.get("pairs") or []
     if not pairs:
         return {"hints": []}
@@ -545,7 +638,7 @@ def do_anomaly_hints(cfg):
             return {"field": field, "value": value, "error": str(e)}
 
     # Keep this capped — anomaly hints fire off many queries
-    max_workers = min(len(pairs), int(cfg.get("max_workers", 6)))
+    max_workers = _effective_workers(cfg, len(pairs))
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = [ex.submit(_one, p) for p in pairs]
         for fut in as_completed(futures):
@@ -1805,7 +1898,9 @@ def do_port_scan_sig_to_port(cfg, progress=None):
     # Use port.dst for unique query (Arkime's unique API needs a specific field)
     port_query_field = "port.dst" if port_field == "port" else port_field
     ports_raw = _fetch_unique(cfg, port_query_field, base_expr)
-    top_ports = [p for p, c in ports_raw[:200]]  # limit to top 200 ports
+    # Configurable port limit for performance (default 50 for billion-session scale)
+    max_ports = int(cfg.get("max_ports", 50))
+    top_ports = [p for p, c in ports_raw[:max_ports]]
 
     if not top_ports:
         return {
@@ -1838,7 +1933,7 @@ def do_port_scan_sig_to_port(cfg, progress=None):
         progress(0, total_ports, None)
 
     errors = []
-    workers = min(len(top_ports), int(cfg.get("max_workers", 6)))
+    workers = _effective_workers(cfg, len(top_ports))
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {ex.submit(fetch_port, p): p for p in top_ports}
         for fut in as_completed(futures):
@@ -1959,7 +2054,7 @@ def do_port_scan_port_to_sig(cfg, progress=None):
         except Exception as e:
             return {"port": port, "error": str(e)}
 
-    workers = min(len(ports), int(cfg.get("max_workers", 6)))
+    workers = _effective_workers(cfg, len(ports))
     results = []
     done = 0
     total_n = len(ports)
@@ -2010,17 +2105,25 @@ def do_port_scan_host_diversity(cfg, progress=None):
         sig_clause = f'{sig_field} == "{_esc_val(pinned)}"'
         base_expr = f'{sig_clause} && {base_expr}' if base_expr else sig_clause
 
+    # Limit initial IP fetch to prevent memory explosion on billion-session datasets
+    max_host_candidates = int(cfg.get("max_host_candidates", 10000))
+    host_cfg = dict(cfg)
+    host_cfg["max_unique"] = max_host_candidates
+
     # Query both ip.src and ip.dst, merge counts
-    hosts_src = {h: c for h, c in _fetch_unique(cfg, "ip.src", base_expr)}
-    hosts_dst = {h: c for h, c in _fetch_unique(cfg, "ip.dst", base_expr)}
+    hosts_src = {h: c for h, c in _fetch_unique(host_cfg, "ip.src", base_expr)}
+    hosts_dst = {h: c for h, c in _fetch_unique(host_cfg, "ip.dst", base_expr)}
     merged = {}
     for h, c in hosts_src.items():
         merged[h] = merged.get(h, 0) + c
     for h, c in hosts_dst.items():
         merged[h] = merged.get(h, 0) + c
-    hosts_raw = sorted(merged.items(), key=lambda kv: -kv[1])
-    eligible = [(h, c) for h, c in hosts_raw if c >= min_sess][:max_hosts]
-    truncated = len([h for h, c in hosts_raw if c >= min_sess]) > max_hosts
+
+    # Filter BEFORE sorting to reduce memory usage
+    hosts_raw = [(h, c) for h, c in merged.items() if c >= min_sess]
+    hosts_raw.sort(key=lambda kv: -kv[1])
+    eligible = hosts_raw[:max_hosts]
+    truncated = len(hosts_raw) > max_hosts
 
     if not eligible:
         return {
@@ -2060,7 +2163,7 @@ def do_port_scan_host_diversity(cfg, progress=None):
         except Exception as e:
             return {"host": host, "total": count, "error": str(e)}
 
-    workers = min(len(eligible), int(cfg.get("max_workers", 6)))
+    workers = _effective_workers(cfg, len(eligible))
     results = []
     done = 0
     total_n = len(eligible)
@@ -2217,6 +2320,92 @@ def _delete_hunt(cfg, hunt_id):
         pass
 
 
+def _process_single_hunt(cfg, pat_cfg, port_field, hunt_timeout, cleanup):
+    """Process a single pattern through Hunt API. Returns result dict."""
+    pattern = pat_cfg.get("pattern", "").strip()
+    pat_type = pat_cfg.get("type", "hex").lower()
+    expected_ports = set(int(p) for p in pat_cfg.get("expected_ports", []))
+
+    if not pattern:
+        return {"pattern": pattern, "error": "Empty pattern"}
+
+    search_type = "hex" if pat_type == "hex" else "ascii"
+
+    try:
+        hunt_name = f"luxray_byte_scan_{pattern[:20]}_{int(time.time())}_{secrets.token_hex(4)}"
+        hunt_id = _create_hunt(cfg, hunt_name, pattern, search_type)
+
+        hunt = _wait_for_hunt(cfg, hunt_id, max_wait=hunt_timeout)
+        matched = hunt.get("matchedSessions", 0)
+
+        if matched == 0:
+            result = {
+                "pattern": pattern,
+                "type": pat_type,
+                "expected_ports": sorted(expected_ports),
+                "matched_sessions": 0,
+                "ports": [],
+                "unexpected_ports": [],
+                "flagged": False,
+            }
+        else:
+            sessions = _get_hunt_sessions(cfg, hunt_id)
+            port_counts = {}
+            for sess in sessions:
+                ports = []
+                if port_field == "port":
+                    p_dst = sess.get("destination", {}).get("port")
+                    p_src = sess.get("source", {}).get("port")
+                    if p_dst is not None:
+                        ports.append(p_dst)
+                    if p_src is not None:
+                        ports.append(p_src)
+                elif port_field == "port.dst":
+                    p = sess.get("destination", {}).get("port")
+                    if p is not None:
+                        ports.append(p)
+                elif port_field == "port.src":
+                    p = sess.get("source", {}).get("port")
+                    if p is not None:
+                        ports.append(p)
+                else:
+                    p = sess.get(port_field)
+                    if p is not None:
+                        ports = [p] if not isinstance(p, list) else p
+
+                for p in ports:
+                    if p is not None:
+                        port_counts[int(p)] = port_counts.get(int(p), 0) + 1
+
+            ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
+            unexpected = [(p, c) for p, c in ports_sorted
+                          if p not in expected_ports and p < 49152]
+            flagged = len(unexpected) > 0 if expected_ports else False
+
+            result = {
+                "pattern": pattern,
+                "type": pat_type,
+                "expected_ports": sorted(expected_ports),
+                "matched_sessions": matched,
+                "ports": [{"port": p, "count": c} for p, c in ports_sorted],
+                "unexpected_ports": [{"port": p, "count": c} for p, c in unexpected],
+                "flagged": flagged,
+            }
+
+        if cleanup:
+            _delete_hunt(cfg, hunt_id)
+
+        return result
+
+    except Exception as e:
+        return {
+            "pattern": pattern,
+            "type": pat_type,
+            "expected_ports": sorted(expected_ports) if expected_ports else [],
+            "error": str(e),
+        }
+
+
 def do_port_scan_byte_pattern(cfg, progress=None):
     """
     Mode 4: Search for byte patterns in raw payloads using Hunt API,
@@ -2227,6 +2416,7 @@ def do_port_scan_byte_pattern(cfg, progress=None):
       port_field: 'port' (both), 'port.dst', or 'port.src'
       cleanup_hunts: bool (default True) - delete hunts after completion
       hunt_timeout: int (default 300) - max seconds to wait per hunt
+      hunt_workers: int (default 4) - max parallel hunts (be careful with Arkime load)
     """
     patterns = cfg.get("patterns") or []
     if not patterns:
@@ -2235,105 +2425,39 @@ def do_port_scan_byte_pattern(cfg, progress=None):
     port_field = cfg.get("port_field") or "port"
     cleanup = cfg.get("cleanup_hunts", True)
     hunt_timeout = int(cfg.get("hunt_timeout", 300))
+    hunt_workers = int(cfg.get("hunt_workers", 4))
 
     _ = _time_params(cfg)  # validate
 
-    results = []
     total = len(patterns)
+    results_by_idx = {}
 
-    for i, pat_cfg in enumerate(patterns):
-        pattern = pat_cfg.get("pattern", "").strip()
-        pat_type = pat_cfg.get("type", "hex").lower()
-        expected_ports = set(int(p) for p in pat_cfg.get("expected_ports", []))
+    if progress:
+        progress(0, total, "Starting parallel hunts...")
 
-        if not pattern:
-            results.append({"pattern": pattern, "error": "Empty pattern"})
+    done_count = [0]  # Use list for closure mutability
+    lock = threading.Lock()
+
+    def process_with_progress(idx, pat_cfg):
+        result = _process_single_hunt(cfg, pat_cfg, port_field, hunt_timeout, cleanup)
+        with lock:
+            done_count[0] += 1
             if progress:
-                progress(i + 1, total, pattern)
-            continue
+                progress(done_count[0], total, result.get("pattern", ""))
+        return idx, result
 
-        search_type = "hex" if pat_type == "hex" else "ascii"
+    workers = min(hunt_workers, len(patterns))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = {
+            ex.submit(process_with_progress, i, pat_cfg): i
+            for i, pat_cfg in enumerate(patterns)
+        }
+        for fut in as_completed(futures):
+            idx, result = fut.result()
+            results_by_idx[idx] = result
 
-        try:
-            hunt_name = f"luxray_byte_scan_{pattern[:20]}_{int(time.time())}"
-            hunt_id = _create_hunt(cfg, hunt_name, pattern, search_type)
-
-            hunt = _wait_for_hunt(cfg, hunt_id, max_wait=hunt_timeout)
-            matched = hunt.get("matchedSessions", 0)
-
-            if matched == 0:
-                results.append({
-                    "pattern": pattern,
-                    "type": pat_type,
-                    "expected_ports": sorted(expected_ports),
-                    "matched_sessions": 0,
-                    "ports": [],
-                    "unexpected_ports": [],
-                    "flagged": False,
-                })
-            else:
-                sessions = _get_hunt_sessions(cfg, hunt_id)
-                port_counts = {}
-                for sess in sessions:
-                    # Handle nested structure: source.port, destination.port
-                    ports = []
-                    if port_field == "port":
-                        # Check both src and dst ports
-                        p_dst = sess.get("destination", {}).get("port")
-                        p_src = sess.get("source", {}).get("port")
-                        if p_dst is not None:
-                            ports.append(p_dst)
-                        if p_src is not None:
-                            ports.append(p_src)
-                    elif port_field == "port.dst":
-                        p = sess.get("destination", {}).get("port")
-                        if p is not None:
-                            ports.append(p)
-                    elif port_field == "port.src":
-                        p = sess.get("source", {}).get("port")
-                        if p is not None:
-                            ports.append(p)
-                    else:
-                        # Try direct access
-                        p = sess.get(port_field)
-                        if p is not None:
-                            ports = [p] if not isinstance(p, list) else p
-
-                    for p in ports:
-                        if p is not None:
-                            port_counts[int(p)] = port_counts.get(int(p), 0) + 1
-
-                ports_sorted = sorted(port_counts.items(), key=lambda x: -x[1])
-                # Only flag ports below the ephemeral range as unexpected
-                # Ephemeral ports (49152-65535) are typically random source ports
-                unexpected = [(p, c) for p, c in ports_sorted
-                              if p not in expected_ports and p < 49152]
-                flagged = len(unexpected) > 0 if expected_ports else False
-
-                results.append({
-                    "pattern": pattern,
-                    "type": pat_type,
-                    "expected_ports": sorted(expected_ports),
-                    "matched_sessions": matched,
-                    "ports": [{"port": p, "count": c} for p, c in ports_sorted],
-                    "unexpected_ports": [{"port": p, "count": c} for p, c in unexpected],
-                    "flagged": flagged,
-                })
-
-            if cleanup:
-                _delete_hunt(cfg, hunt_id)
-
-        except Exception as e:
-            results.append({
-                "pattern": pattern,
-                "type": pat_type,
-                "expected_ports": sorted(expected_ports) if expected_ports else [],
-                "error": str(e),
-            })
-
-        if progress:
-            progress(i + 1, total, pattern)
-
+    # Preserve original order
+    results = [results_by_idx[i] for i in range(len(patterns))]
     flagged_count = sum(1 for r in results if r.get("flagged"))
 
     return {
@@ -2654,7 +2778,10 @@ class _Cache:
             self._data.clear()
 
 
-CACHE = _Cache()
+# Environment-configurable cache settings for large deployments
+CACHE_MAX_ENTRIES = int(os.environ.get("LUXRAY_CACHE_MAX_ENTRIES", 256))
+CACHE_TTL_SECS = int(os.environ.get("LUXRAY_CACHE_TTL_SECS", 600))
+CACHE = _Cache(ttl_secs=CACHE_TTL_SECS, max_entries=CACHE_MAX_ENTRIES)
 
 
 # ==============================================================================
@@ -3057,7 +3184,7 @@ tr.clean td{opacity:.75}
       </div>
       <div>
         <label class="no-mt">Parallel workers</label>
-        <input type="number" id="maxWorkers" value="6" min="1" max="16">
+        <input type="number" id="maxWorkers" value="12" min="1" max="24">
       </div>
     </div>
     <div class="check-row">
@@ -3527,7 +3654,7 @@ function getConfig() {
     max_rare_display: parseIntOr(document.getElementById("maxRare").value, 50),
     max_unique:       parseIntOr(document.getElementById("maxUnique").value, 0),
     timeout_secs:     parseInt(document.getElementById("timeoutSecs").value) || 1800,
-    max_workers:      parseInt(document.getElementById("maxWorkers").value) || 6,
+    max_workers:      parseInt(document.getElementById("maxWorkers").value) || 12,
     anom_hints:       document.getElementById("anomHints").checked,
     allowlist:        parseAllowlist(),
   };
