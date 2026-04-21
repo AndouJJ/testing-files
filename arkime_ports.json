@@ -1,0 +1,5717 @@
+{
+  "1": {
+    "services": [
+      "tcpmux"
+    ],
+    "desc": ""
+  },
+  "7": {
+    "services": [
+      "echo"
+    ],
+    "desc": "Echo Protocol - network testing"
+  },
+  "9": {
+    "services": [
+      "discard",
+      "wake-on-lan"
+    ],
+    "desc": "Discard/Wake-on-LAN"
+  },
+  "11": {
+    "services": [
+      "systat"
+    ],
+    "desc": ""
+  },
+  "13": {
+    "services": [
+      "daytime"
+    ],
+    "desc": ""
+  },
+  "17": {
+    "services": [
+      "qotd"
+    ],
+    "desc": ""
+  },
+  "19": {
+    "services": [
+      "chargen"
+    ],
+    "desc": ""
+  },
+  "20": {
+    "services": [
+      "ftp-data",
+      "ftp"
+    ],
+    "desc": "FTP data transfer channel"
+  },
+  "21": {
+    "services": [
+      "ftp",
+      "ftp-control"
+    ],
+    "desc": "FTP control - file transfer"
+  },
+  "22": {
+    "services": [
+      "ssh",
+      "sftp",
+      "scp"
+    ],
+    "desc": "SSH - secure remote login/file transfer"
+  },
+  "23": {
+    "services": [
+      "telnet"
+    ],
+    "desc": "Telnet - unencrypted remote login"
+  },
+  "25": {
+    "services": [
+      "smtp"
+    ],
+    "desc": "SMTP - email relay"
+  },
+  "37": {
+    "services": [
+      "time"
+    ],
+    "desc": "Time Protocol"
+  },
+  "42": {
+    "services": [
+      "nameserver",
+      "wins"
+    ],
+    "desc": ""
+  },
+  "43": {
+    "services": [
+      "whois"
+    ],
+    "desc": "WHOIS - domain lookup"
+  },
+  "49": {
+    "services": [
+      "tacacs"
+    ],
+    "desc": "TACACS - authentication"
+  },
+  "53": {
+    "services": [
+      "dns"
+    ],
+    "desc": "DNS - hostname resolution"
+  },
+  "67": {
+    "services": [
+      "dhcp",
+      "bootp"
+    ],
+    "desc": "DHCP/BOOTP server"
+  },
+  "68": {
+    "services": [
+      "dhcp",
+      "bootp"
+    ],
+    "desc": "DHCP/BOOTP client"
+  },
+  "69": {
+    "services": [
+      "tftp"
+    ],
+    "desc": "TFTP - simple file transfer"
+  },
+  "70": {
+    "services": [
+      "gopher"
+    ],
+    "desc": "Gopher - text-based browsing"
+  },
+  "79": {
+    "services": [
+      "finger"
+    ],
+    "desc": "Finger - user info lookup"
+  },
+  "80": {
+    "services": [
+      "http"
+    ],
+    "desc": "HTTP - web traffic"
+  },
+  "88": {
+    "services": [
+      "kerberos"
+    ],
+    "desc": "Kerberos - network authentication"
+  },
+  "102": {
+    "services": [
+      "iso-tsap",
+      "x400"
+    ],
+    "desc": ""
+  },
+  "104": {
+    "services": [
+      "dicom"
+    ],
+    "desc": "DICOM - medical imaging"
+  },
+  "109": {
+    "services": [
+      "pop2"
+    ],
+    "desc": "POP2 - legacy email"
+  },
+  "110": {
+    "services": [
+      "pop3"
+    ],
+    "desc": "POP3 - email retrieval"
+  },
+  "111": {
+    "services": [
+      "sunrpc",
+      "rpcbind"
+    ],
+    "desc": "Sun RPC/Portmapper"
+  },
+  "113": {
+    "services": [
+      "ident",
+      "auth"
+    ],
+    "desc": "Ident - user identification"
+  },
+  "115": {
+    "services": [
+      "sftp"
+    ],
+    "desc": ""
+  },
+  "118": {
+    "services": [
+      "sqlserv"
+    ],
+    "desc": ""
+  },
+  "119": {
+    "services": [
+      "nntp"
+    ],
+    "desc": "NNTP - Usenet news"
+  },
+  "123": {
+    "services": [
+      "ntp"
+    ],
+    "desc": "NTP - clock synchronization"
+  },
+  "135": {
+    "services": [
+      "msrpc",
+      "dce-rpc",
+      "epmap"
+    ],
+    "desc": "MS-RPC/DCE-RPC - Windows RPC"
+  },
+  "137": {
+    "services": [
+      "netbios",
+      "nbns"
+    ],
+    "desc": "NetBIOS Name Service"
+  },
+  "138": {
+    "services": [
+      "netbios",
+      "nbds"
+    ],
+    "desc": "NetBIOS Datagram"
+  },
+  "139": {
+    "services": [
+      "netbios",
+      "smb"
+    ],
+    "desc": "NetBIOS Session/SMB"
+  },
+  "143": {
+    "services": [
+      "imap"
+    ],
+    "desc": "IMAP - email access"
+  },
+  "161": {
+    "services": [
+      "snmp"
+    ],
+    "desc": "SNMP - network monitoring"
+  },
+  "162": {
+    "services": [
+      "snmp",
+      "snmptrap"
+    ],
+    "desc": "SNMP Trap - network alerts"
+  },
+  "163": {
+    "services": [
+      "cmip"
+    ],
+    "desc": ""
+  },
+  "164": {
+    "services": [
+      "cmip"
+    ],
+    "desc": ""
+  },
+  "174": {
+    "services": [
+      "mailq"
+    ],
+    "desc": ""
+  },
+  "177": {
+    "services": [
+      "xdmcp"
+    ],
+    "desc": "XDMCP - X11 display manager"
+  },
+  "179": {
+    "services": [
+      "bgp"
+    ],
+    "desc": "BGP - internet routing"
+  },
+  "194": {
+    "services": [
+      "irc"
+    ],
+    "desc": "IRC - chat protocol"
+  },
+  "199": {
+    "services": [
+      "smux"
+    ],
+    "desc": ""
+  },
+  "201": {
+    "services": [
+      "appletalk"
+    ],
+    "desc": ""
+  },
+  "209": {
+    "services": [
+      "qmtp"
+    ],
+    "desc": ""
+  },
+  "210": {
+    "services": [
+      "z39.50"
+    ],
+    "desc": ""
+  },
+  "213": {
+    "services": [
+      "ipx"
+    ],
+    "desc": ""
+  },
+  "220": {
+    "services": [
+      "imap3"
+    ],
+    "desc": ""
+  },
+  "259": {
+    "services": [
+      "esro"
+    ],
+    "desc": ""
+  },
+  "264": {
+    "services": [
+      "bgmp"
+    ],
+    "desc": ""
+  },
+  "318": {
+    "services": [
+      "pkix-tsp"
+    ],
+    "desc": ""
+  },
+  "319": {
+    "services": [
+      "ptp"
+    ],
+    "desc": ""
+  },
+  "320": {
+    "services": [
+      "ptp"
+    ],
+    "desc": ""
+  },
+  "323": {
+    "services": [
+      "rpki-rtr"
+    ],
+    "desc": ""
+  },
+  "350": {
+    "services": [
+      "matip-a"
+    ],
+    "desc": ""
+  },
+  "351": {
+    "services": [
+      "matip-b"
+    ],
+    "desc": ""
+  },
+  "366": {
+    "services": [
+      "odmr"
+    ],
+    "desc": ""
+  },
+  "369": {
+    "services": [
+      "rpc2portmap"
+    ],
+    "desc": ""
+  },
+  "370": {
+    "services": [
+      "codaauth2"
+    ],
+    "desc": ""
+  },
+  "371": {
+    "services": [
+      "clearcase"
+    ],
+    "desc": ""
+  },
+  "383": {
+    "services": [
+      "hp-alarm"
+    ],
+    "desc": ""
+  },
+  "384": {
+    "services": [
+      "arns"
+    ],
+    "desc": ""
+  },
+  "387": {
+    "services": [
+      "aurp"
+    ],
+    "desc": ""
+  },
+  "389": {
+    "services": [
+      "ldap"
+    ],
+    "desc": "LDAP - directory services"
+  },
+  "401": {
+    "services": [
+      "ups"
+    ],
+    "desc": ""
+  },
+  "427": {
+    "services": [
+      "svrloc",
+      "slp"
+    ],
+    "desc": "SLP - service discovery"
+  },
+  "443": {
+    "services": [
+      "https",
+      "tls",
+      "ssl",
+      "quic",
+      "http"
+    ],
+    "desc": "HTTPS - encrypted web (TLS/SSL/QUIC)"
+  },
+  "444": {
+    "services": [
+      "snpp"
+    ],
+    "desc": ""
+  },
+  "445": {
+    "services": [
+      "smb",
+      "cifs",
+      "microsoft-ds"
+    ],
+    "desc": "SMB/CIFS - Windows file sharing"
+  },
+  "464": {
+    "services": [
+      "kpasswd"
+    ],
+    "desc": "Kerberos password change"
+  },
+  "465": {
+    "services": [
+      "smtps",
+      "submissions",
+      "tls",
+      "ssl"
+    ],
+    "desc": "SMTPS - secure email submission"
+  },
+  "475": {
+    "services": [
+      "tcpnethaspsrv"
+    ],
+    "desc": ""
+  },
+  "497": {
+    "services": [
+      "retrospect"
+    ],
+    "desc": ""
+  },
+  "500": {
+    "services": [
+      "ipsec",
+      "isakmp",
+      "ike"
+    ],
+    "desc": "IPsec/IKE - VPN key exchange"
+  },
+  "502": {
+    "services": [
+      "modbus"
+    ],
+    "desc": "Modbus - industrial control (ICS/SCADA)"
+  },
+  "504": {
+    "services": [
+      "citadel"
+    ],
+    "desc": ""
+  },
+  "510": {
+    "services": [
+      "firstclass"
+    ],
+    "desc": ""
+  },
+  "512": {
+    "services": [
+      "rexec"
+    ],
+    "desc": "Remote execution"
+  },
+  "513": {
+    "services": [
+      "rlogin"
+    ],
+    "desc": "Remote login"
+  },
+  "514": {
+    "services": [
+      "syslog",
+      "rsh"
+    ],
+    "desc": "Syslog/Remote shell"
+  },
+  "515": {
+    "services": [
+      "lpd",
+      "printer"
+    ],
+    "desc": "LPD - line printer daemon"
+  },
+  "517": {
+    "services": [
+      "talk"
+    ],
+    "desc": ""
+  },
+  "518": {
+    "services": [
+      "ntalk"
+    ],
+    "desc": ""
+  },
+  "520": {
+    "services": [
+      "rip"
+    ],
+    "desc": "RIP - routing protocol"
+  },
+  "521": {
+    "services": [
+      "ripng"
+    ],
+    "desc": "RIPng - IPv6 routing"
+  },
+  "524": {
+    "services": [
+      "ncp"
+    ],
+    "desc": ""
+  },
+  "525": {
+    "services": [
+      "timed"
+    ],
+    "desc": ""
+  },
+  "530": {
+    "services": [
+      "rpc"
+    ],
+    "desc": ""
+  },
+  "532": {
+    "services": [
+      "netnews"
+    ],
+    "desc": ""
+  },
+  "533": {
+    "services": [
+      "netwall"
+    ],
+    "desc": ""
+  },
+  "540": {
+    "services": [
+      "uucp"
+    ],
+    "desc": ""
+  },
+  "543": {
+    "services": [
+      "klogin"
+    ],
+    "desc": ""
+  },
+  "544": {
+    "services": [
+      "kshell"
+    ],
+    "desc": ""
+  },
+  "546": {
+    "services": [
+      "dhcpv6-client"
+    ],
+    "desc": "DHCPv6 client"
+  },
+  "547": {
+    "services": [
+      "dhcpv6-server"
+    ],
+    "desc": "DHCPv6 server"
+  },
+  "548": {
+    "services": [
+      "afp"
+    ],
+    "desc": "AFP - Apple file sharing"
+  },
+  "554": {
+    "services": [
+      "rtsp"
+    ],
+    "desc": "RTSP - streaming media control"
+  },
+  "556": {
+    "services": [
+      "remotefs"
+    ],
+    "desc": ""
+  },
+  "563": {
+    "services": [
+      "nntps",
+      "tls"
+    ],
+    "desc": "NNTPS - secure Usenet"
+  },
+  "564": {
+    "services": [
+      "9p"
+    ],
+    "desc": ""
+  },
+  "587": {
+    "services": [
+      "smtp",
+      "submission",
+      "tls"
+    ],
+    "desc": "Email submission (STARTTLS)"
+  },
+  "591": {
+    "services": [
+      "filemaker"
+    ],
+    "desc": ""
+  },
+  "593": {
+    "services": [
+      "http-rpc-epmap"
+    ],
+    "desc": ""
+  },
+  "601": {
+    "services": [
+      "syslog-conn"
+    ],
+    "desc": ""
+  },
+  "604": {
+    "services": [
+      "tunnel"
+    ],
+    "desc": ""
+  },
+  "623": {
+    "services": [
+      "asf-rmcp",
+      "ipmi"
+    ],
+    "desc": "IPMI - server management"
+  },
+  "625": {
+    "services": [
+      "apple-xsrvr-admin"
+    ],
+    "desc": ""
+  },
+  "631": {
+    "services": [
+      "ipp",
+      "cups"
+    ],
+    "desc": "IPP/CUPS - printing"
+  },
+  "636": {
+    "services": [
+      "ldaps",
+      "tls",
+      "ssl"
+    ],
+    "desc": "LDAPS - secure directory"
+  },
+  "639": {
+    "services": [
+      "msdp"
+    ],
+    "desc": ""
+  },
+  "641": {
+    "services": [
+      "supportsoft"
+    ],
+    "desc": ""
+  },
+  "646": {
+    "services": [
+      "ldp"
+    ],
+    "desc": "LDP - MPLS label distribution"
+  },
+  "647": {
+    "services": [
+      "dhcp-failover"
+    ],
+    "desc": ""
+  },
+  "648": {
+    "services": [
+      "rrp"
+    ],
+    "desc": ""
+  },
+  "651": {
+    "services": [
+      "ieee-mms"
+    ],
+    "desc": ""
+  },
+  "653": {
+    "services": [
+      "supportsoft"
+    ],
+    "desc": ""
+  },
+  "654": {
+    "services": [
+      "mms"
+    ],
+    "desc": ""
+  },
+  "655": {
+    "services": [
+      "tinc"
+    ],
+    "desc": "Tinc VPN"
+  },
+  "657": {
+    "services": [
+      "ibm-rmc"
+    ],
+    "desc": ""
+  },
+  "660": {
+    "services": [
+      "macos-server"
+    ],
+    "desc": ""
+  },
+  "666": {
+    "services": [
+      "doom"
+    ],
+    "desc": ""
+  },
+  "674": {
+    "services": [
+      "acap"
+    ],
+    "desc": ""
+  },
+  "684": {
+    "services": [
+      "corba-ssl"
+    ],
+    "desc": ""
+  },
+  "691": {
+    "services": [
+      "ms-exchange"
+    ],
+    "desc": ""
+  },
+  "694": {
+    "services": [
+      "linux-ha"
+    ],
+    "desc": ""
+  },
+  "695": {
+    "services": [
+      "ieee-mms-ssl"
+    ],
+    "desc": ""
+  },
+  "698": {
+    "services": [
+      "olsr"
+    ],
+    "desc": ""
+  },
+  "700": {
+    "services": [
+      "epp"
+    ],
+    "desc": ""
+  },
+  "701": {
+    "services": [
+      "lmp"
+    ],
+    "desc": ""
+  },
+  "702": {
+    "services": [
+      "iris-beep"
+    ],
+    "desc": ""
+  },
+  "706": {
+    "services": [
+      "silc"
+    ],
+    "desc": ""
+  },
+  "711": {
+    "services": [
+      "tdp"
+    ],
+    "desc": ""
+  },
+  "712": {
+    "services": [
+      "tbrpf"
+    ],
+    "desc": ""
+  },
+  "749": {
+    "services": [
+      "kerberos-adm"
+    ],
+    "desc": ""
+  },
+  "750": {
+    "services": [
+      "kerberos-iv"
+    ],
+    "desc": ""
+  },
+  "751": {
+    "services": [
+      "kerberos-master"
+    ],
+    "desc": ""
+  },
+  "753": {
+    "services": [
+      "rrh"
+    ],
+    "desc": ""
+  },
+  "754": {
+    "services": [
+      "tell"
+    ],
+    "desc": ""
+  },
+  "760": {
+    "services": [
+      "krbupdate"
+    ],
+    "desc": ""
+  },
+  "782": {
+    "services": [
+      "conserver"
+    ],
+    "desc": ""
+  },
+  "783": {
+    "services": [
+      "spamassassin"
+    ],
+    "desc": ""
+  },
+  "800": {
+    "services": [
+      "mdbs-daemon"
+    ],
+    "desc": ""
+  },
+  "802": {
+    "services": [
+      "modbus-tls"
+    ],
+    "desc": ""
+  },
+  "808": {
+    "services": [
+      "net-tcp"
+    ],
+    "desc": ""
+  },
+  "829": {
+    "services": [
+      "pkix-cmp"
+    ],
+    "desc": ""
+  },
+  "830": {
+    "services": [
+      "netconf-ssh"
+    ],
+    "desc": ""
+  },
+  "831": {
+    "services": [
+      "netconf-beep"
+    ],
+    "desc": ""
+  },
+  "832": {
+    "services": [
+      "netconf-https"
+    ],
+    "desc": ""
+  },
+  "833": {
+    "services": [
+      "netconf-beep-tls"
+    ],
+    "desc": ""
+  },
+  "843": {
+    "services": [
+      "flash"
+    ],
+    "desc": ""
+  },
+  "847": {
+    "services": [
+      "dhcp-failover2"
+    ],
+    "desc": ""
+  },
+  "848": {
+    "services": [
+      "gdoi"
+    ],
+    "desc": ""
+  },
+  "853": {
+    "services": [
+      "dns",
+      "dot",
+      "tls"
+    ],
+    "desc": "DNS over TLS (DoT)"
+  },
+  "860": {
+    "services": [
+      "iscsi"
+    ],
+    "desc": "iSCSI - network storage"
+  },
+  "861": {
+    "services": [
+      "owamp"
+    ],
+    "desc": ""
+  },
+  "862": {
+    "services": [
+      "twamp"
+    ],
+    "desc": ""
+  },
+  "873": {
+    "services": [
+      "rsync"
+    ],
+    "desc": "Rsync - file synchronization"
+  },
+  "888": {
+    "services": [
+      "cddbp"
+    ],
+    "desc": ""
+  },
+  "902": {
+    "services": [
+      "vmware"
+    ],
+    "desc": "VMware ESXi"
+  },
+  "903": {
+    "services": [
+      "vmware"
+    ],
+    "desc": "VMware remote console"
+  },
+  "953": {
+    "services": [
+      "rndc"
+    ],
+    "desc": ""
+  },
+  "981": {
+    "services": [
+      "checkpoint"
+    ],
+    "desc": ""
+  },
+  "987": {
+    "services": [
+      "playstation"
+    ],
+    "desc": ""
+  },
+  "988": {
+    "services": [
+      "lustre"
+    ],
+    "desc": ""
+  },
+  "989": {
+    "services": [
+      "ftps-data",
+      "tls"
+    ],
+    "desc": "FTPS data (TLS)"
+  },
+  "990": {
+    "services": [
+      "ftps",
+      "tls"
+    ],
+    "desc": "FTPS control (TLS)"
+  },
+  "991": {
+    "services": [
+      "nas"
+    ],
+    "desc": ""
+  },
+  "992": {
+    "services": [
+      "telnets",
+      "tls"
+    ],
+    "desc": "Telnet over TLS"
+  },
+  "993": {
+    "services": [
+      "imaps",
+      "tls",
+      "ssl"
+    ],
+    "desc": "IMAPS - secure email access"
+  },
+  "994": {
+    "services": [
+      "ircs",
+      "tls"
+    ],
+    "desc": ""
+  },
+  "995": {
+    "services": [
+      "pop3s",
+      "tls",
+      "ssl"
+    ],
+    "desc": "POP3S - secure email retrieval"
+  },
+  "1024": {
+    "services": [
+      "reserved"
+    ],
+    "desc": ""
+  },
+  "1025": {
+    "services": [
+      "nfs"
+    ],
+    "desc": ""
+  },
+  "1027": {
+    "services": [
+      "6a44"
+    ],
+    "desc": ""
+  },
+  "1029": {
+    "services": [
+      "dcom"
+    ],
+    "desc": ""
+  },
+  "1058": {
+    "services": [
+      "nim"
+    ],
+    "desc": ""
+  },
+  "1059": {
+    "services": [
+      "nimreg"
+    ],
+    "desc": ""
+  },
+  "1080": {
+    "services": [
+      "socks"
+    ],
+    "desc": "SOCKS proxy"
+  },
+  "1085": {
+    "services": [
+      "webobjects"
+    ],
+    "desc": ""
+  },
+  "1098": {
+    "services": [
+      "rmiactivation"
+    ],
+    "desc": ""
+  },
+  "1099": {
+    "services": [
+      "rmiregistry"
+    ],
+    "desc": ""
+  },
+  "1119": {
+    "services": [
+      "battlenet"
+    ],
+    "desc": ""
+  },
+  "1167": {
+    "services": [
+      "cisco-sla"
+    ],
+    "desc": ""
+  },
+  "1194": {
+    "services": [
+      "openvpn"
+    ],
+    "desc": "OpenVPN"
+  },
+  "1214": {
+    "services": [
+      "kazaa"
+    ],
+    "desc": ""
+  },
+  "1220": {
+    "services": [
+      "qt-streaming"
+    ],
+    "desc": ""
+  },
+  "1234": {
+    "services": [
+      "hotline"
+    ],
+    "desc": ""
+  },
+  "1241": {
+    "services": [
+      "nessus"
+    ],
+    "desc": ""
+  },
+  "1270": {
+    "services": [
+      "scom"
+    ],
+    "desc": ""
+  },
+  "1293": {
+    "services": [
+      "ipsec"
+    ],
+    "desc": ""
+  },
+  "1311": {
+    "services": [
+      "dell-openmanage"
+    ],
+    "desc": ""
+  },
+  "1314": {
+    "services": [
+      "festival"
+    ],
+    "desc": ""
+  },
+  "1337": {
+    "services": [
+      "menandmice"
+    ],
+    "desc": ""
+  },
+  "1344": {
+    "services": [
+      "icap"
+    ],
+    "desc": ""
+  },
+  "1352": {
+    "services": [
+      "lotus-notes",
+      "hcl-notes"
+    ],
+    "desc": "Lotus/HCL Notes"
+  },
+  "1414": {
+    "services": [
+      "ibm-mq"
+    ],
+    "desc": ""
+  },
+  "1417": {
+    "services": [
+      "timbuktu"
+    ],
+    "desc": ""
+  },
+  "1418": {
+    "services": [
+      "timbuktu"
+    ],
+    "desc": ""
+  },
+  "1419": {
+    "services": [
+      "timbuktu"
+    ],
+    "desc": ""
+  },
+  "1420": {
+    "services": [
+      "timbuktu"
+    ],
+    "desc": ""
+  },
+  "1433": {
+    "services": [
+      "mssql",
+      "tds"
+    ],
+    "desc": "Microsoft SQL Server"
+  },
+  "1434": {
+    "services": [
+      "mssql",
+      "tds"
+    ],
+    "desc": "MS SQL Browser"
+  },
+  "1494": {
+    "services": [
+      "citrix",
+      "ica"
+    ],
+    "desc": "Citrix ICA"
+  },
+  "1500": {
+    "services": [
+      "tivoli"
+    ],
+    "desc": ""
+  },
+  "1501": {
+    "services": [
+      "tivoli"
+    ],
+    "desc": ""
+  },
+  "1503": {
+    "services": [
+      "windows-messenger"
+    ],
+    "desc": ""
+  },
+  "1512": {
+    "services": [
+      "wins"
+    ],
+    "desc": ""
+  },
+  "1513": {
+    "services": [
+      "garena"
+    ],
+    "desc": ""
+  },
+  "1521": {
+    "services": [
+      "oracle",
+      "tns"
+    ],
+    "desc": "Oracle Database"
+  },
+  "1524": {
+    "services": [
+      "ingreslock"
+    ],
+    "desc": ""
+  },
+  "1527": {
+    "services": [
+      "oracle-net"
+    ],
+    "desc": ""
+  },
+  "1533": {
+    "services": [
+      "sametime"
+    ],
+    "desc": ""
+  },
+  "1534": {
+    "services": [
+      "eclipse-tcf"
+    ],
+    "desc": ""
+  },
+  "1540": {
+    "services": [
+      "1c-enterprise"
+    ],
+    "desc": ""
+  },
+  "1541": {
+    "services": [
+      "1c-enterprise"
+    ],
+    "desc": ""
+  },
+  "1542": {
+    "services": [
+      "1c-enterprise"
+    ],
+    "desc": ""
+  },
+  "1545": {
+    "services": [
+      "1c-enterprise"
+    ],
+    "desc": ""
+  },
+  "1547": {
+    "services": [
+      "laplink"
+    ],
+    "desc": ""
+  },
+  "1550": {
+    "services": [
+      "1c-enterprise"
+    ],
+    "desc": ""
+  },
+  "1581": {
+    "services": [
+      "mil-std-2045"
+    ],
+    "desc": ""
+  },
+  "1589": {
+    "services": [
+      "cisco-vqp"
+    ],
+    "desc": ""
+  },
+  "1604": {
+    "services": [
+      "darkcomet"
+    ],
+    "desc": ""
+  },
+  "1645": {
+    "services": [
+      "radius"
+    ],
+    "desc": ""
+  },
+  "1646": {
+    "services": [
+      "radius"
+    ],
+    "desc": ""
+  },
+  "1666": {
+    "services": [
+      "perforce"
+    ],
+    "desc": ""
+  },
+  "1677": {
+    "services": [
+      "groupwise"
+    ],
+    "desc": ""
+  },
+  "1688": {
+    "services": [
+      "ms-kms"
+    ],
+    "desc": ""
+  },
+  "1701": {
+    "services": [
+      "l2tp",
+      "l2f"
+    ],
+    "desc": "L2TP VPN"
+  },
+  "1707": {
+    "services": [
+      "windward"
+    ],
+    "desc": ""
+  },
+  "1719": {
+    "services": [
+      "h323"
+    ],
+    "desc": ""
+  },
+  "1720": {
+    "services": [
+      "h323"
+    ],
+    "desc": ""
+  },
+  "1723": {
+    "services": [
+      "pptp"
+    ],
+    "desc": "PPTP VPN"
+  },
+  "1755": {
+    "services": [
+      "ms-media"
+    ],
+    "desc": ""
+  },
+  "1761": {
+    "services": [
+      "zenworks"
+    ],
+    "desc": ""
+  },
+  "1776": {
+    "services": [
+      "emergency"
+    ],
+    "desc": ""
+  },
+  "1801": {
+    "services": [
+      "msmq"
+    ],
+    "desc": ""
+  },
+  "1812": {
+    "services": [
+      "radius"
+    ],
+    "desc": "RADIUS authentication"
+  },
+  "1813": {
+    "services": [
+      "radius"
+    ],
+    "desc": "RADIUS accounting"
+  },
+  "1863": {
+    "services": [
+      "msnp"
+    ],
+    "desc": ""
+  },
+  "1880": {
+    "services": [
+      "node-red"
+    ],
+    "desc": ""
+  },
+  "1883": {
+    "services": [
+      "mqtt"
+    ],
+    "desc": "MQTT - IoT messaging"
+  },
+  "1900": {
+    "services": [
+      "ssdp",
+      "upnp"
+    ],
+    "desc": "SSDP/UPnP discovery"
+  },
+  "1935": {
+    "services": [
+      "rtmp",
+      "flash"
+    ],
+    "desc": "RTMP - Flash streaming"
+  },
+  "1965": {
+    "services": [
+      "gemini"
+    ],
+    "desc": ""
+  },
+  "1967": {
+    "services": [
+      "cisco-sla"
+    ],
+    "desc": ""
+  },
+  "1972": {
+    "services": [
+      "intersystems-cache"
+    ],
+    "desc": ""
+  },
+  "1984": {
+    "services": [
+      "bigbrother"
+    ],
+    "desc": ""
+  },
+  "1985": {
+    "services": [
+      "hsrp"
+    ],
+    "desc": "HSRP - router redundancy"
+  },
+  "1998": {
+    "services": [
+      "cisco-xot"
+    ],
+    "desc": ""
+  },
+  "2000": {
+    "services": [
+      "cisco-sccp",
+      "skinny"
+    ],
+    "desc": ""
+  },
+  "2010": {
+    "services": [
+      "artemis"
+    ],
+    "desc": ""
+  },
+  "2019": {
+    "services": [
+      "caddy"
+    ],
+    "desc": ""
+  },
+  "2049": {
+    "services": [
+      "nfs"
+    ],
+    "desc": "NFS - Unix file sharing"
+  },
+  "2055": {
+    "services": [
+      "netflow"
+    ],
+    "desc": "NetFlow - traffic monitoring"
+  },
+  "2080": {
+    "services": [
+      "autodesk"
+    ],
+    "desc": ""
+  },
+  "2082": {
+    "services": [
+      "cpanel"
+    ],
+    "desc": ""
+  },
+  "2083": {
+    "services": [
+      "cpanel-ssl"
+    ],
+    "desc": ""
+  },
+  "2086": {
+    "services": [
+      "gnunet"
+    ],
+    "desc": ""
+  },
+  "2087": {
+    "services": [
+      "whm-ssl"
+    ],
+    "desc": ""
+  },
+  "2095": {
+    "services": [
+      "cpanel-webmail"
+    ],
+    "desc": ""
+  },
+  "2096": {
+    "services": [
+      "cpanel-webmail-ssl"
+    ],
+    "desc": ""
+  },
+  "2100": {
+    "services": [
+      "warzone2100"
+    ],
+    "desc": ""
+  },
+  "2101": {
+    "services": [
+      "ntrip"
+    ],
+    "desc": ""
+  },
+  "2102": {
+    "services": [
+      "zephyr"
+    ],
+    "desc": ""
+  },
+  "2103": {
+    "services": [
+      "zephyr"
+    ],
+    "desc": ""
+  },
+  "2104": {
+    "services": [
+      "zephyr"
+    ],
+    "desc": ""
+  },
+  "2123": {
+    "services": [
+      "gtp",
+      "gtp-c"
+    ],
+    "desc": "GTP-C - mobile signaling"
+  },
+  "2142": {
+    "services": [
+      "tdmoip"
+    ],
+    "desc": ""
+  },
+  "2152": {
+    "services": [
+      "gtp",
+      "gtp-u"
+    ],
+    "desc": "GTP-U - mobile data"
+  },
+  "2159": {
+    "services": [
+      "gdb"
+    ],
+    "desc": ""
+  },
+  "2181": {
+    "services": [
+      "zookeeper"
+    ],
+    "desc": "ZooKeeper coordination"
+  },
+  "2195": {
+    "services": [
+      "apple-push"
+    ],
+    "desc": ""
+  },
+  "2196": {
+    "services": [
+      "apple-push"
+    ],
+    "desc": ""
+  },
+  "2197": {
+    "services": [
+      "apple-push"
+    ],
+    "desc": ""
+  },
+  "2221": {
+    "services": [
+      "eset"
+    ],
+    "desc": ""
+  },
+  "2222": {
+    "services": [
+      "ethernet-ip"
+    ],
+    "desc": ""
+  },
+  "2302": {
+    "services": [
+      "arma"
+    ],
+    "desc": ""
+  },
+  "2303": {
+    "services": [
+      "arma"
+    ],
+    "desc": ""
+  },
+  "2305": {
+    "services": [
+      "arma"
+    ],
+    "desc": ""
+  },
+  "2368": {
+    "services": [
+      "ghost"
+    ],
+    "desc": ""
+  },
+  "2375": {
+    "services": [
+      "docker"
+    ],
+    "desc": "Docker API (unencrypted)"
+  },
+  "2376": {
+    "services": [
+      "docker-ssl"
+    ],
+    "desc": "Docker API (TLS)"
+  },
+  "2377": {
+    "services": [
+      "docker-swarm"
+    ],
+    "desc": ""
+  },
+  "2379": {
+    "services": [
+      "etcd"
+    ],
+    "desc": "etcd client"
+  },
+  "2380": {
+    "services": [
+      "etcd"
+    ],
+    "desc": "etcd peer"
+  },
+  "2389": {
+    "services": [
+      "openview"
+    ],
+    "desc": ""
+  },
+  "2399": {
+    "services": [
+      "filemaker"
+    ],
+    "desc": ""
+  },
+  "2401": {
+    "services": [
+      "cvs"
+    ],
+    "desc": ""
+  },
+  "2404": {
+    "services": [
+      "iec-60870"
+    ],
+    "desc": "IEC 60870-5-104 (SCADA)"
+  },
+  "2424": {
+    "services": [
+      "orientdb"
+    ],
+    "desc": ""
+  },
+  "2427": {
+    "services": [
+      "mgcp"
+    ],
+    "desc": ""
+  },
+  "2447": {
+    "services": [
+      "openview"
+    ],
+    "desc": ""
+  },
+  "2456": {
+    "services": [
+      "valheim"
+    ],
+    "desc": ""
+  },
+  "2480": {
+    "services": [
+      "orientdb-http"
+    ],
+    "desc": ""
+  },
+  "2483": {
+    "services": [
+      "oracle"
+    ],
+    "desc": ""
+  },
+  "2484": {
+    "services": [
+      "oracle-ssl"
+    ],
+    "desc": ""
+  },
+  "2500": {
+    "services": [
+      "netfs"
+    ],
+    "desc": ""
+  },
+  "2535": {
+    "services": [
+      "madcap"
+    ],
+    "desc": ""
+  },
+  "2541": {
+    "services": [
+      "lontalk"
+    ],
+    "desc": ""
+  },
+  "2598": {
+    "services": [
+      "citrix"
+    ],
+    "desc": "Citrix session reliability"
+  },
+  "2628": {
+    "services": [
+      "dict"
+    ],
+    "desc": ""
+  },
+  "2638": {
+    "services": [
+      "sql-anywhere"
+    ],
+    "desc": ""
+  },
+  "2710": {
+    "services": [
+      "xbt-tracker"
+    ],
+    "desc": ""
+  },
+  "2727": {
+    "services": [
+      "mgcp"
+    ],
+    "desc": ""
+  },
+  "2759": {
+    "services": [
+      "supertuxkart"
+    ],
+    "desc": ""
+  },
+  "2761": {
+    "services": [
+      "dicom"
+    ],
+    "desc": ""
+  },
+  "2762": {
+    "services": [
+      "dicom-tls"
+    ],
+    "desc": ""
+  },
+  "2775": {
+    "services": [
+      "smpp"
+    ],
+    "desc": ""
+  },
+  "2809": {
+    "services": [
+      "corba"
+    ],
+    "desc": ""
+  },
+  "2811": {
+    "services": [
+      "gridftp"
+    ],
+    "desc": ""
+  },
+  "2827": {
+    "services": [
+      "i2p"
+    ],
+    "desc": ""
+  },
+  "2944": {
+    "services": [
+      "megaco"
+    ],
+    "desc": ""
+  },
+  "2945": {
+    "services": [
+      "megaco"
+    ],
+    "desc": ""
+  },
+  "2947": {
+    "services": [
+      "gpsd"
+    ],
+    "desc": ""
+  },
+  "2967": {
+    "services": [
+      "symantec"
+    ],
+    "desc": ""
+  },
+  "3000": {
+    "services": [
+      "grafana",
+      "rails",
+      "meteor"
+    ],
+    "desc": "Grafana/Node.js apps"
+  },
+  "3001": {
+    "services": [
+      "honeywell"
+    ],
+    "desc": ""
+  },
+  "3004": {
+    "services": [
+      "isync"
+    ],
+    "desc": ""
+  },
+  "3020": {
+    "services": [
+      "cifs"
+    ],
+    "desc": ""
+  },
+  "3050": {
+    "services": [
+      "gds-db",
+      "interbase"
+    ],
+    "desc": ""
+  },
+  "3052": {
+    "services": [
+      "apc"
+    ],
+    "desc": ""
+  },
+  "3074": {
+    "services": [
+      "xbox-live"
+    ],
+    "desc": ""
+  },
+  "3101": {
+    "services": [
+      "blackberry"
+    ],
+    "desc": ""
+  },
+  "3128": {
+    "services": [
+      "squid",
+      "http-proxy"
+    ],
+    "desc": "Squid HTTP proxy"
+  },
+  "3225": {
+    "services": [
+      "fcip"
+    ],
+    "desc": ""
+  },
+  "3260": {
+    "services": [
+      "iscsi"
+    ],
+    "desc": "iSCSI target"
+  },
+  "3268": {
+    "services": [
+      "globalcatalog"
+    ],
+    "desc": ""
+  },
+  "3269": {
+    "services": [
+      "globalcatalog-ssl"
+    ],
+    "desc": ""
+  },
+  "3283": {
+    "services": [
+      "apple-remote-desktop"
+    ],
+    "desc": ""
+  },
+  "3290": {
+    "services": [
+      "vatsim"
+    ],
+    "desc": ""
+  },
+  "3305": {
+    "services": [
+      "oftp"
+    ],
+    "desc": ""
+  },
+  "3306": {
+    "services": [
+      "mysql"
+    ],
+    "desc": "MySQL database"
+  },
+  "3323": {
+    "services": [
+      "dece-geodi"
+    ],
+    "desc": ""
+  },
+  "3333": {
+    "services": [
+      "eggdrop"
+    ],
+    "desc": ""
+  },
+  "3351": {
+    "services": [
+      "pervasive"
+    ],
+    "desc": ""
+  },
+  "3386": {
+    "services": [
+      "gtp-prime"
+    ],
+    "desc": ""
+  },
+  "3389": {
+    "services": [
+      "rdp"
+    ],
+    "desc": "RDP - Windows remote desktop"
+  },
+  "3396": {
+    "services": [
+      "novell-ndps"
+    ],
+    "desc": ""
+  },
+  "3412": {
+    "services": [
+      "xmlblaster"
+    ],
+    "desc": ""
+  },
+  "3455": {
+    "services": [
+      "rsvp"
+    ],
+    "desc": ""
+  },
+  "3478": {
+    "services": [
+      "stun",
+      "turn"
+    ],
+    "desc": "STUN/TURN - NAT traversal"
+  },
+  "3479": {
+    "services": [
+      "stun",
+      "turn",
+      "playstation"
+    ],
+    "desc": ""
+  },
+  "3480": {
+    "services": [
+      "playstation"
+    ],
+    "desc": ""
+  },
+  "3483": {
+    "services": [
+      "slim-devices"
+    ],
+    "desc": ""
+  },
+  "3493": {
+    "services": [
+      "nut"
+    ],
+    "desc": ""
+  },
+  "3516": {
+    "services": [
+      "smartcard"
+    ],
+    "desc": ""
+  },
+  "3527": {
+    "services": [
+      "msmq"
+    ],
+    "desc": ""
+  },
+  "3535": {
+    "services": [
+      "smtp-alt"
+    ],
+    "desc": ""
+  },
+  "3544": {
+    "services": [
+      "teredo"
+    ],
+    "desc": ""
+  },
+  "3551": {
+    "services": [
+      "apcupsd"
+    ],
+    "desc": ""
+  },
+  "3601": {
+    "services": [
+      "sap"
+    ],
+    "desc": ""
+  },
+  "3632": {
+    "services": [
+      "distcc"
+    ],
+    "desc": ""
+  },
+  "3659": {
+    "services": [
+      "apple-sasl"
+    ],
+    "desc": ""
+  },
+  "3689": {
+    "services": [
+      "daap",
+      "itunes"
+    ],
+    "desc": ""
+  },
+  "3690": {
+    "services": [
+      "svn",
+      "subversion"
+    ],
+    "desc": "Subversion"
+  },
+  "3702": {
+    "services": [
+      "wsd",
+      "ws-discovery"
+    ],
+    "desc": "WS-Discovery"
+  },
+  "3724": {
+    "services": [
+      "blizzard",
+      "wow"
+    ],
+    "desc": "Blizzard/World of Warcraft"
+  },
+  "3749": {
+    "services": [
+      "cimtrak"
+    ],
+    "desc": ""
+  },
+  "3784": {
+    "services": [
+      "bfd"
+    ],
+    "desc": ""
+  },
+  "3785": {
+    "services": [
+      "ventrilo"
+    ],
+    "desc": ""
+  },
+  "3799": {
+    "services": [
+      "radius-dynauth"
+    ],
+    "desc": ""
+  },
+  "3804": {
+    "services": [
+      "hiqnet"
+    ],
+    "desc": ""
+  },
+  "3868": {
+    "services": [
+      "diameter"
+    ],
+    "desc": "Diameter - LTE/telecom auth"
+  },
+  "3872": {
+    "services": [
+      "oracle-em"
+    ],
+    "desc": ""
+  },
+  "3880": {
+    "services": [
+      "igrs"
+    ],
+    "desc": ""
+  },
+  "3900": {
+    "services": [
+      "unidata"
+    ],
+    "desc": ""
+  },
+  "3960": {
+    "services": [
+      "warframe"
+    ],
+    "desc": ""
+  },
+  "3962": {
+    "services": [
+      "warframe"
+    ],
+    "desc": ""
+  },
+  "3978": {
+    "services": [
+      "openttd"
+    ],
+    "desc": ""
+  },
+  "3979": {
+    "services": [
+      "openttd"
+    ],
+    "desc": ""
+  },
+  "4000": {
+    "services": [
+      "diablo",
+      "remoteanything"
+    ],
+    "desc": ""
+  },
+  "4001": {
+    "services": [
+      "cisco-xns"
+    ],
+    "desc": ""
+  },
+  "4018": {
+    "services": [
+      "protocol-info"
+    ],
+    "desc": ""
+  },
+  "4045": {
+    "services": [
+      "lockd"
+    ],
+    "desc": ""
+  },
+  "4050": {
+    "services": [
+      "mmcp"
+    ],
+    "desc": ""
+  },
+  "4069": {
+    "services": [
+      "minger"
+    ],
+    "desc": ""
+  },
+  "4070": {
+    "services": [
+      "amazon-echo"
+    ],
+    "desc": ""
+  },
+  "4089": {
+    "services": [
+      "opencore"
+    ],
+    "desc": ""
+  },
+  "4090": {
+    "services": [
+      "kerio"
+    ],
+    "desc": ""
+  },
+  "4111": {
+    "services": [
+      "xgrid"
+    ],
+    "desc": ""
+  },
+  "4116": {
+    "services": [
+      "smartcard-tls"
+    ],
+    "desc": ""
+  },
+  "4123": {
+    "services": [
+      "z-wave"
+    ],
+    "desc": ""
+  },
+  "4125": {
+    "services": [
+      "rww"
+    ],
+    "desc": ""
+  },
+  "4172": {
+    "services": [
+      "pcoip"
+    ],
+    "desc": ""
+  },
+  "4190": {
+    "services": [
+      "managesieve",
+      "sieve"
+    ],
+    "desc": ""
+  },
+  "4222": {
+    "services": [
+      "nats"
+    ],
+    "desc": ""
+  },
+  "4242": {
+    "services": [
+      "orthanc"
+    ],
+    "desc": ""
+  },
+  "4243": {
+    "services": [
+      "docker"
+    ],
+    "desc": ""
+  },
+  "4244": {
+    "services": [
+      "viber"
+    ],
+    "desc": ""
+  },
+  "4303": {
+    "services": [
+      "srcp"
+    ],
+    "desc": ""
+  },
+  "4307": {
+    "services": [
+      "trueconf"
+    ],
+    "desc": ""
+  },
+  "4321": {
+    "services": [
+      "rwhois"
+    ],
+    "desc": ""
+  },
+  "4420": {
+    "services": [
+      "nvme"
+    ],
+    "desc": ""
+  },
+  "4443": {
+    "services": [
+      "pharos"
+    ],
+    "desc": ""
+  },
+  "4444": {
+    "services": [
+      "krb524"
+    ],
+    "desc": ""
+  },
+  "4455": {
+    "services": [
+      "obs-studio"
+    ],
+    "desc": ""
+  },
+  "4500": {
+    "services": [
+      "ipsec",
+      "ike"
+    ],
+    "desc": "IPsec NAT-T"
+  },
+  "4502": {
+    "services": [
+      "silverlight"
+    ],
+    "desc": ""
+  },
+  "4505": {
+    "services": [
+      "salt"
+    ],
+    "desc": ""
+  },
+  "4506": {
+    "services": [
+      "salt"
+    ],
+    "desc": ""
+  },
+  "4534": {
+    "services": [
+      "armagetron"
+    ],
+    "desc": ""
+  },
+  "4560": {
+    "services": [
+      "log4j"
+    ],
+    "desc": ""
+  },
+  "4567": {
+    "services": [
+      "sinatra",
+      "tram"
+    ],
+    "desc": ""
+  },
+  "4569": {
+    "services": [
+      "iax",
+      "iax2"
+    ],
+    "desc": ""
+  },
+  "4604": {
+    "services": [
+      "identity-reg"
+    ],
+    "desc": ""
+  },
+  "4662": {
+    "services": [
+      "edonkey",
+      "emule"
+    ],
+    "desc": ""
+  },
+  "4664": {
+    "services": [
+      "google-desktop"
+    ],
+    "desc": ""
+  },
+  "4672": {
+    "services": [
+      "emule"
+    ],
+    "desc": ""
+  },
+  "4711": {
+    "services": [
+      "emule-web"
+    ],
+    "desc": ""
+  },
+  "4713": {
+    "services": [
+      "pulseaudio"
+    ],
+    "desc": ""
+  },
+  "4723": {
+    "services": [
+      "appium"
+    ],
+    "desc": ""
+  },
+  "4724": {
+    "services": [
+      "appium"
+    ],
+    "desc": ""
+  },
+  "4730": {
+    "services": [
+      "gearman"
+    ],
+    "desc": ""
+  },
+  "4739": {
+    "services": [
+      "ipfix"
+    ],
+    "desc": ""
+  },
+  "4789": {
+    "services": [
+      "vxlan"
+    ],
+    "desc": "VXLAN overlay network"
+  },
+  "4791": {
+    "services": [
+      "roce"
+    ],
+    "desc": ""
+  },
+  "4840": {
+    "services": [
+      "opc-ua"
+    ],
+    "desc": "OPC UA (industrial)"
+  },
+  "4843": {
+    "services": [
+      "opc-ua-tls"
+    ],
+    "desc": ""
+  },
+  "4848": {
+    "services": [
+      "glassfish"
+    ],
+    "desc": ""
+  },
+  "4894": {
+    "services": [
+      "lyskom"
+    ],
+    "desc": ""
+  },
+  "4900": {
+    "services": [
+      "hfsql"
+    ],
+    "desc": ""
+  },
+  "4949": {
+    "services": [
+      "munin"
+    ],
+    "desc": ""
+  },
+  "5000": {
+    "services": [
+      "upnp",
+      "flask",
+      "synology"
+    ],
+    "desc": "UPnP/Docker Registry"
+  },
+  "5001": {
+    "services": [
+      "iperf",
+      "slingbox"
+    ],
+    "desc": ""
+  },
+  "5002": {
+    "services": [
+      "rfe"
+    ],
+    "desc": ""
+  },
+  "5003": {
+    "services": [
+      "filemaker"
+    ],
+    "desc": ""
+  },
+  "5004": {
+    "services": [
+      "rtp"
+    ],
+    "desc": ""
+  },
+  "5005": {
+    "services": [
+      "rtp"
+    ],
+    "desc": ""
+  },
+  "5006": {
+    "services": [
+      "wsm"
+    ],
+    "desc": ""
+  },
+  "5007": {
+    "services": [
+      "wsm"
+    ],
+    "desc": ""
+  },
+  "5008": {
+    "services": [
+      "synaptics"
+    ],
+    "desc": ""
+  },
+  "5009": {
+    "services": [
+      "airport"
+    ],
+    "desc": ""
+  },
+  "5010": {
+    "services": [
+      "telelpathstart"
+    ],
+    "desc": ""
+  },
+  "5020": {
+    "services": [
+      "zenginkyo"
+    ],
+    "desc": ""
+  },
+  "5037": {
+    "services": [
+      "adb"
+    ],
+    "desc": ""
+  },
+  "5050": {
+    "services": [
+      "yahoo-messenger"
+    ],
+    "desc": ""
+  },
+  "5051": {
+    "services": [
+      "ita-agent"
+    ],
+    "desc": ""
+  },
+  "5060": {
+    "services": [
+      "sip"
+    ],
+    "desc": "SIP - VoIP signaling"
+  },
+  "5061": {
+    "services": [
+      "sip",
+      "tls",
+      "sip-tls"
+    ],
+    "desc": "SIP over TLS"
+  },
+  "5062": {
+    "services": [
+      "sip"
+    ],
+    "desc": ""
+  },
+  "5063": {
+    "services": [
+      "sip"
+    ],
+    "desc": ""
+  },
+  "5064": {
+    "services": [
+      "ca-client"
+    ],
+    "desc": ""
+  },
+  "5065": {
+    "services": [
+      "ca-server"
+    ],
+    "desc": ""
+  },
+  "5070": {
+    "services": [
+      "sip"
+    ],
+    "desc": ""
+  },
+  "5080": {
+    "services": [
+      "sip"
+    ],
+    "desc": ""
+  },
+  "5090": {
+    "services": [
+      "sip"
+    ],
+    "desc": ""
+  },
+  "5093": {
+    "services": [
+      "sentinel"
+    ],
+    "desc": ""
+  },
+  "5099": {
+    "services": [
+      "safe-net"
+    ],
+    "desc": ""
+  },
+  "5100": {
+    "services": [
+      "adm"
+    ],
+    "desc": ""
+  },
+  "5104": {
+    "services": [
+      "tinymux"
+    ],
+    "desc": ""
+  },
+  "5121": {
+    "services": [
+      "neverwinter"
+    ],
+    "desc": ""
+  },
+  "5150": {
+    "services": [
+      "atmp"
+    ],
+    "desc": ""
+  },
+  "5151": {
+    "services": [
+      "esri-sde"
+    ],
+    "desc": ""
+  },
+  "5154": {
+    "services": [
+      "bzflag"
+    ],
+    "desc": ""
+  },
+  "5172": {
+    "services": [
+      "pcoip"
+    ],
+    "desc": ""
+  },
+  "5190": {
+    "services": [
+      "aim",
+      "icq"
+    ],
+    "desc": ""
+  },
+  "5191": {
+    "services": [
+      "aim"
+    ],
+    "desc": ""
+  },
+  "5192": {
+    "services": [
+      "aim"
+    ],
+    "desc": ""
+  },
+  "5193": {
+    "services": [
+      "aim"
+    ],
+    "desc": ""
+  },
+  "5222": {
+    "services": [
+      "xmpp",
+      "jabber"
+    ],
+    "desc": "XMPP/Jabber chat"
+  },
+  "5223": {
+    "services": [
+      "xmpp",
+      "jabber",
+      "tls",
+      "xmpp-tls"
+    ],
+    "desc": "XMPP over TLS"
+  },
+  "5224": {
+    "services": [
+      "hpvmmcontrol"
+    ],
+    "desc": ""
+  },
+  "5225": {
+    "services": [
+      "hpvmmdata"
+    ],
+    "desc": ""
+  },
+  "5226": {
+    "services": [
+      "hpvmmdata"
+    ],
+    "desc": ""
+  },
+  "5228": {
+    "services": [
+      "gcm",
+      "google-play"
+    ],
+    "desc": ""
+  },
+  "5242": {
+    "services": [
+      "viber"
+    ],
+    "desc": ""
+  },
+  "5243": {
+    "services": [
+      "viber"
+    ],
+    "desc": ""
+  },
+  "5269": {
+    "services": [
+      "xmpp-server"
+    ],
+    "desc": ""
+  },
+  "5280": {
+    "services": [
+      "xmpp-bosh"
+    ],
+    "desc": ""
+  },
+  "5281": {
+    "services": [
+      "xmpp-bosh-tls"
+    ],
+    "desc": ""
+  },
+  "5298": {
+    "services": [
+      "presence"
+    ],
+    "desc": ""
+  },
+  "5310": {
+    "services": [
+      "outlaws"
+    ],
+    "desc": ""
+  },
+  "5349": {
+    "services": [
+      "stun-tls",
+      "turn-tls"
+    ],
+    "desc": ""
+  },
+  "5351": {
+    "services": [
+      "nat-pmp"
+    ],
+    "desc": ""
+  },
+  "5353": {
+    "services": [
+      "mdns",
+      "dns",
+      "bonjour"
+    ],
+    "desc": "mDNS - Bonjour/Avahi"
+  },
+  "5354": {
+    "services": [
+      "mdns"
+    ],
+    "desc": ""
+  },
+  "5355": {
+    "services": [
+      "llmnr"
+    ],
+    "desc": "LLMNR - local name resolution"
+  },
+  "5357": {
+    "services": [
+      "wsd"
+    ],
+    "desc": ""
+  },
+  "5358": {
+    "services": [
+      "wsd-tls"
+    ],
+    "desc": ""
+  },
+  "5400": {
+    "services": [
+      "vnc-http"
+    ],
+    "desc": ""
+  },
+  "5432": {
+    "services": [
+      "postgresql",
+      "postgres"
+    ],
+    "desc": "PostgreSQL database"
+  },
+  "5433": {
+    "services": [
+      "postgresql"
+    ],
+    "desc": ""
+  },
+  "5500": {
+    "services": [
+      "vnc"
+    ],
+    "desc": ""
+  },
+  "5520": {
+    "services": [
+      "vnc"
+    ],
+    "desc": ""
+  },
+  "5631": {
+    "services": [
+      "pcanywhere"
+    ],
+    "desc": ""
+  },
+  "5632": {
+    "services": [
+      "pcanywhere"
+    ],
+    "desc": ""
+  },
+  "5666": {
+    "services": [
+      "nrpe"
+    ],
+    "desc": ""
+  },
+  "5667": {
+    "services": [
+      "nsca"
+    ],
+    "desc": ""
+  },
+  "5672": {
+    "services": [
+      "amqp"
+    ],
+    "desc": "AMQP - RabbitMQ"
+  },
+  "5673": {
+    "services": [
+      "amqp"
+    ],
+    "desc": ""
+  },
+  "5683": {
+    "services": [
+      "coap"
+    ],
+    "desc": "CoAP - IoT protocol"
+  },
+  "5684": {
+    "services": [
+      "coap-dtls"
+    ],
+    "desc": ""
+  },
+  "5701": {
+    "services": [
+      "hazelcast"
+    ],
+    "desc": ""
+  },
+  "5722": {
+    "services": [
+      "dfsr"
+    ],
+    "desc": ""
+  },
+  "5723": {
+    "services": [
+      "scom"
+    ],
+    "desc": ""
+  },
+  "5724": {
+    "services": [
+      "scom"
+    ],
+    "desc": ""
+  },
+  "5800": {
+    "services": [
+      "vnc-http"
+    ],
+    "desc": ""
+  },
+  "5801": {
+    "services": [
+      "vnc-http"
+    ],
+    "desc": ""
+  },
+  "5802": {
+    "services": [
+      "vnc-http"
+    ],
+    "desc": ""
+  },
+  "5900": {
+    "services": [
+      "vnc",
+      "rfb"
+    ],
+    "desc": "VNC - remote desktop"
+  },
+  "5901": {
+    "services": [
+      "vnc",
+      "rfb"
+    ],
+    "desc": ""
+  },
+  "5902": {
+    "services": [
+      "vnc",
+      "rfb"
+    ],
+    "desc": ""
+  },
+  "5903": {
+    "services": [
+      "vnc",
+      "rfb"
+    ],
+    "desc": ""
+  },
+  "5938": {
+    "services": [
+      "teamviewer"
+    ],
+    "desc": "TeamViewer"
+  },
+  "5984": {
+    "services": [
+      "couchdb"
+    ],
+    "desc": "CouchDB"
+  },
+  "5985": {
+    "services": [
+      "winrm"
+    ],
+    "desc": "WinRM - Windows remote mgmt"
+  },
+  "5986": {
+    "services": [
+      "winrm-ssl"
+    ],
+    "desc": ""
+  },
+  "5988": {
+    "services": [
+      "wbem"
+    ],
+    "desc": ""
+  },
+  "5989": {
+    "services": [
+      "wbem-ssl"
+    ],
+    "desc": ""
+  },
+  "6000": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6001": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6002": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6003": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6004": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6005": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6006": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6007": {
+    "services": [
+      "x11"
+    ],
+    "desc": ""
+  },
+  "6050": {
+    "services": [
+      "arcserve"
+    ],
+    "desc": ""
+  },
+  "6051": {
+    "services": [
+      "arcserve"
+    ],
+    "desc": ""
+  },
+  "6100": {
+    "services": [
+      "vino"
+    ],
+    "desc": ""
+  },
+  "6112": {
+    "services": [
+      "dtspcd",
+      "battlenet",
+      "guildwars"
+    ],
+    "desc": ""
+  },
+  "6113": {
+    "services": [
+      "battlenet"
+    ],
+    "desc": ""
+  },
+  "6222": {
+    "services": [
+      "radmind"
+    ],
+    "desc": ""
+  },
+  "6262": {
+    "services": [
+      "sybase"
+    ],
+    "desc": ""
+  },
+  "6343": {
+    "services": [
+      "sflow"
+    ],
+    "desc": ""
+  },
+  "6346": {
+    "services": [
+      "gnutella"
+    ],
+    "desc": ""
+  },
+  "6347": {
+    "services": [
+      "gnutella"
+    ],
+    "desc": ""
+  },
+  "6379": {
+    "services": [
+      "redis"
+    ],
+    "desc": "Redis database"
+  },
+  "6389": {
+    "services": [
+      "clariion"
+    ],
+    "desc": ""
+  },
+  "6432": {
+    "services": [
+      "pgbouncer"
+    ],
+    "desc": ""
+  },
+  "6443": {
+    "services": [
+      "kubernetes"
+    ],
+    "desc": "Kubernetes API"
+  },
+  "6444": {
+    "services": [
+      "sge-qmaster"
+    ],
+    "desc": ""
+  },
+  "6445": {
+    "services": [
+      "sge-execd"
+    ],
+    "desc": ""
+  },
+  "6502": {
+    "services": [
+      "netop"
+    ],
+    "desc": ""
+  },
+  "6513": {
+    "services": [
+      "netconf-tls"
+    ],
+    "desc": ""
+  },
+  "6514": {
+    "services": [
+      "syslog-tls"
+    ],
+    "desc": "Syslog over TLS"
+  },
+  "6515": {
+    "services": [
+      "elipse-rec"
+    ],
+    "desc": ""
+  },
+  "6556": {
+    "services": [
+      "checkmk"
+    ],
+    "desc": "Checkmk monitoring"
+  },
+  "6566": {
+    "services": [
+      "sane"
+    ],
+    "desc": ""
+  },
+  "6567": {
+    "services": [
+      "esp"
+    ],
+    "desc": ""
+  },
+  "6588": {
+    "services": [
+      "analogx"
+    ],
+    "desc": ""
+  },
+  "6600": {
+    "services": [
+      "mpd"
+    ],
+    "desc": ""
+  },
+  "6601": {
+    "services": [
+      "mstmg"
+    ],
+    "desc": ""
+  },
+  "6602": {
+    "services": [
+      "wsscomfrmwk"
+    ],
+    "desc": ""
+  },
+  "6619": {
+    "services": [
+      "odette-ftps"
+    ],
+    "desc": ""
+  },
+  "6620": {
+    "services": [
+      "kftp-data"
+    ],
+    "desc": ""
+  },
+  "6621": {
+    "services": [
+      "kftp"
+    ],
+    "desc": ""
+  },
+  "6622": {
+    "services": [
+      "mcftp"
+    ],
+    "desc": ""
+  },
+  "6623": {
+    "services": [
+      "ktelnet"
+    ],
+    "desc": ""
+  },
+  "6660": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6661": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6662": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6663": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6664": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6665": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6666": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6667": {
+    "services": [
+      "irc"
+    ],
+    "desc": "IRC chat"
+  },
+  "6668": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6669": {
+    "services": [
+      "irc"
+    ],
+    "desc": ""
+  },
+  "6679": {
+    "services": [
+      "irc-ssl"
+    ],
+    "desc": ""
+  },
+  "6697": {
+    "services": [
+      "irc-ssl"
+    ],
+    "desc": "IRC over TLS"
+  },
+  "6699": {
+    "services": [
+      "napster"
+    ],
+    "desc": ""
+  },
+  "6771": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6783": {
+    "services": [
+      "weave"
+    ],
+    "desc": ""
+  },
+  "6784": {
+    "services": [
+      "weave"
+    ],
+    "desc": ""
+  },
+  "6881": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": "BitTorrent"
+  },
+  "6882": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6883": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6884": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6885": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6886": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6887": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6888": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6889": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6890": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "6891": {
+    "services": [
+      "bittorrent",
+      "windows-live"
+    ],
+    "desc": ""
+  },
+  "6901": {
+    "services": [
+      "windows-live"
+    ],
+    "desc": ""
+  },
+  "6969": {
+    "services": [
+      "bittorrent",
+      "acmsoda"
+    ],
+    "desc": ""
+  },
+  "6970": {
+    "services": [
+      "rtp"
+    ],
+    "desc": ""
+  },
+  "7000": {
+    "services": [
+      "afs",
+      "cassandra"
+    ],
+    "desc": "Cassandra inter-node"
+  },
+  "7001": {
+    "services": [
+      "weblogic",
+      "cassandra"
+    ],
+    "desc": "WebLogic"
+  },
+  "7002": {
+    "services": [
+      "weblogic-ssl"
+    ],
+    "desc": ""
+  },
+  "7070": {
+    "services": [
+      "realserver"
+    ],
+    "desc": ""
+  },
+  "7077": {
+    "services": [
+      "spark"
+    ],
+    "desc": ""
+  },
+  "7078": {
+    "services": [
+      "spark"
+    ],
+    "desc": ""
+  },
+  "7199": {
+    "services": [
+      "cassandra"
+    ],
+    "desc": ""
+  },
+  "7210": {
+    "services": [
+      "maxdb"
+    ],
+    "desc": ""
+  },
+  "7230": {
+    "services": [
+      "asa-appl-proto"
+    ],
+    "desc": ""
+  },
+  "7262": {
+    "services": [
+      "cnap"
+    ],
+    "desc": ""
+  },
+  "7272": {
+    "services": [
+      "watchme"
+    ],
+    "desc": ""
+  },
+  "7306": {
+    "services": [
+      "swx"
+    ],
+    "desc": ""
+  },
+  "7307": {
+    "services": [
+      "swx"
+    ],
+    "desc": ""
+  },
+  "7396": {
+    "services": [
+      "sysmon"
+    ],
+    "desc": ""
+  },
+  "7400": {
+    "services": [
+      "rtps-discovery"
+    ],
+    "desc": ""
+  },
+  "7401": {
+    "services": [
+      "rtps-user"
+    ],
+    "desc": ""
+  },
+  "7402": {
+    "services": [
+      "rtps"
+    ],
+    "desc": ""
+  },
+  "7443": {
+    "services": [
+      "oracleas-https"
+    ],
+    "desc": ""
+  },
+  "7474": {
+    "services": [
+      "neo4j"
+    ],
+    "desc": ""
+  },
+  "7478": {
+    "services": [
+      "neo4j-bolt"
+    ],
+    "desc": ""
+  },
+  "7500": {
+    "services": [
+      "silhouette"
+    ],
+    "desc": ""
+  },
+  "7501": {
+    "services": [
+      "silhouette"
+    ],
+    "desc": ""
+  },
+  "7547": {
+    "services": [
+      "cwmp"
+    ],
+    "desc": ""
+  },
+  "7624": {
+    "services": [
+      "indi"
+    ],
+    "desc": ""
+  },
+  "7631": {
+    "services": [
+      "tesla-wall"
+    ],
+    "desc": ""
+  },
+  "7634": {
+    "services": [
+      "hddtemp"
+    ],
+    "desc": ""
+  },
+  "7648": {
+    "services": [
+      "cuseeme"
+    ],
+    "desc": ""
+  },
+  "7649": {
+    "services": [
+      "cuseeme"
+    ],
+    "desc": ""
+  },
+  "7657": {
+    "services": [
+      "i2p"
+    ],
+    "desc": ""
+  },
+  "7676": {
+    "services": [
+      "imqbrokerd"
+    ],
+    "desc": ""
+  },
+  "7680": {
+    "services": [
+      "pando"
+    ],
+    "desc": ""
+  },
+  "7687": {
+    "services": [
+      "neo4j-bolt"
+    ],
+    "desc": ""
+  },
+  "7707": {
+    "services": [
+      "kugoo"
+    ],
+    "desc": ""
+  },
+  "7777": {
+    "services": [
+      "cbt",
+      "ichat"
+    ],
+    "desc": ""
+  },
+  "7778": {
+    "services": [
+      "interwise"
+    ],
+    "desc": ""
+  },
+  "7779": {
+    "services": [
+      "vstat"
+    ],
+    "desc": ""
+  },
+  "7780": {
+    "services": [
+      "acme"
+    ],
+    "desc": ""
+  },
+  "7787": {
+    "services": [
+      "popup"
+    ],
+    "desc": ""
+  },
+  "7788": {
+    "services": [
+      "office-link"
+    ],
+    "desc": ""
+  },
+  "7789": {
+    "services": [
+      "office-link"
+    ],
+    "desc": ""
+  },
+  "7831": {
+    "services": [
+      "sstp"
+    ],
+    "desc": ""
+  },
+  "7879": {
+    "services": [
+      "xmms2"
+    ],
+    "desc": ""
+  },
+  "7880": {
+    "services": [
+      "xmms2"
+    ],
+    "desc": ""
+  },
+  "7915": {
+    "services": [
+      "supercell"
+    ],
+    "desc": ""
+  },
+  "8000": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": "HTTP alternate"
+  },
+  "8001": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8002": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8005": {
+    "services": [
+      "tomcat"
+    ],
+    "desc": ""
+  },
+  "8006": {
+    "services": [
+      "proxmox"
+    ],
+    "desc": ""
+  },
+  "8007": {
+    "services": [
+      "ajp"
+    ],
+    "desc": ""
+  },
+  "8008": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8009": {
+    "services": [
+      "ajp"
+    ],
+    "desc": ""
+  },
+  "8010": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8042": {
+    "services": [
+      "hadoop-yarn"
+    ],
+    "desc": ""
+  },
+  "8043": {
+    "services": [
+      "hadoop-yarn"
+    ],
+    "desc": ""
+  },
+  "8060": {
+    "services": [
+      "roku"
+    ],
+    "desc": ""
+  },
+  "8069": {
+    "services": [
+      "odoo"
+    ],
+    "desc": ""
+  },
+  "8080": {
+    "services": [
+      "http",
+      "http-proxy",
+      "tomcat"
+    ],
+    "desc": "HTTP proxy/alternate"
+  },
+  "8081": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8082": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8083": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8084": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8085": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8086": {
+    "services": [
+      "influxdb"
+    ],
+    "desc": "InfluxDB"
+  },
+  "8087": {
+    "services": [
+      "riak-pb"
+    ],
+    "desc": ""
+  },
+  "8088": {
+    "services": [
+      "riak-http"
+    ],
+    "desc": ""
+  },
+  "8089": {
+    "services": [
+      "splunk"
+    ],
+    "desc": ""
+  },
+  "8090": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8091": {
+    "services": [
+      "couchbase"
+    ],
+    "desc": ""
+  },
+  "8092": {
+    "services": [
+      "couchbase"
+    ],
+    "desc": ""
+  },
+  "8093": {
+    "services": [
+      "couchbase"
+    ],
+    "desc": ""
+  },
+  "8096": {
+    "services": [
+      "emby"
+    ],
+    "desc": ""
+  },
+  "8098": {
+    "services": [
+      "riak-http"
+    ],
+    "desc": ""
+  },
+  "8099": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8100": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8111": {
+    "services": [
+      "teamcity"
+    ],
+    "desc": ""
+  },
+  "8112": {
+    "services": [
+      "deluge"
+    ],
+    "desc": ""
+  },
+  "8116": {
+    "services": [
+      "cpha"
+    ],
+    "desc": ""
+  },
+  "8118": {
+    "services": [
+      "privoxy"
+    ],
+    "desc": ""
+  },
+  "8123": {
+    "services": [
+      "home-assistant"
+    ],
+    "desc": "Home Assistant"
+  },
+  "8126": {
+    "services": [
+      "statsd"
+    ],
+    "desc": ""
+  },
+  "8139": {
+    "services": [
+      "puppet"
+    ],
+    "desc": ""
+  },
+  "8140": {
+    "services": [
+      "puppet"
+    ],
+    "desc": ""
+  },
+  "8181": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8194": {
+    "services": [
+      "bloomberg"
+    ],
+    "desc": ""
+  },
+  "8195": {
+    "services": [
+      "bloomberg"
+    ],
+    "desc": ""
+  },
+  "8200": {
+    "services": [
+      "trivnet1"
+    ],
+    "desc": ""
+  },
+  "8222": {
+    "services": [
+      "nats"
+    ],
+    "desc": ""
+  },
+  "8243": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "8280": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8281": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "8291": {
+    "services": [
+      "mikrotik"
+    ],
+    "desc": ""
+  },
+  "8300": {
+    "services": [
+      "consul"
+    ],
+    "desc": ""
+  },
+  "8301": {
+    "services": [
+      "consul-lan"
+    ],
+    "desc": ""
+  },
+  "8302": {
+    "services": [
+      "consul-wan"
+    ],
+    "desc": ""
+  },
+  "8332": {
+    "services": [
+      "bitcoin"
+    ],
+    "desc": "Bitcoin RPC"
+  },
+  "8333": {
+    "services": [
+      "bitcoin"
+    ],
+    "desc": "Bitcoin P2P"
+  },
+  "8334": {
+    "services": [
+      "bitcoin"
+    ],
+    "desc": ""
+  },
+  "8384": {
+    "services": [
+      "syncthing"
+    ],
+    "desc": ""
+  },
+  "8388": {
+    "services": [
+      "shadowsocks"
+    ],
+    "desc": ""
+  },
+  "8443": {
+    "services": [
+      "https",
+      "tls",
+      "ssl",
+      "tomcat",
+      "https-alt"
+    ],
+    "desc": "HTTPS alternate"
+  },
+  "8444": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "8448": {
+    "services": [
+      "matrix-federation"
+    ],
+    "desc": ""
+  },
+  "8500": {
+    "services": [
+      "consul"
+    ],
+    "desc": ""
+  },
+  "8530": {
+    "services": [
+      "wsus"
+    ],
+    "desc": ""
+  },
+  "8531": {
+    "services": [
+      "wsus-ssl"
+    ],
+    "desc": ""
+  },
+  "8554": {
+    "services": [
+      "rtsp-alt"
+    ],
+    "desc": ""
+  },
+  "8555": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "8580": {
+    "services": [
+      "sunrise"
+    ],
+    "desc": ""
+  },
+  "8629": {
+    "services": [
+      "payoneer"
+    ],
+    "desc": ""
+  },
+  "8642": {
+    "services": [
+      "tornado"
+    ],
+    "desc": ""
+  },
+  "8765": {
+    "services": [
+      "ultraseek"
+    ],
+    "desc": ""
+  },
+  "8767": {
+    "services": [
+      "teamspeak"
+    ],
+    "desc": ""
+  },
+  "8768": {
+    "services": [
+      "sandvine"
+    ],
+    "desc": ""
+  },
+  "8800": {
+    "services": [
+      "sun-webservices"
+    ],
+    "desc": ""
+  },
+  "8843": {
+    "services": [
+      "unifi"
+    ],
+    "desc": ""
+  },
+  "8880": {
+    "services": [
+      "cddbp"
+    ],
+    "desc": ""
+  },
+  "8883": {
+    "services": [
+      "mqtt",
+      "tls",
+      "mqtt-tls"
+    ],
+    "desc": "MQTT over TLS"
+  },
+  "8888": {
+    "services": [
+      "http-alt",
+      "ddi-tcp",
+      "sun-answerbook"
+    ],
+    "desc": ""
+  },
+  "8889": {
+    "services": [
+      "ddi-tcp"
+    ],
+    "desc": ""
+  },
+  "8983": {
+    "services": [
+      "solr"
+    ],
+    "desc": ""
+  },
+  "9000": {
+    "services": [
+      "cslistener",
+      "php-fpm"
+    ],
+    "desc": "PHP-FPM"
+  },
+  "9001": {
+    "services": [
+      "tor-control"
+    ],
+    "desc": ""
+  },
+  "9002": {
+    "services": [
+      "dynamid"
+    ],
+    "desc": ""
+  },
+  "9003": {
+    "services": [
+      "php-xdebug"
+    ],
+    "desc": ""
+  },
+  "9009": {
+    "services": [
+      "pichat"
+    ],
+    "desc": ""
+  },
+  "9010": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "9030": {
+    "services": [
+      "tor"
+    ],
+    "desc": ""
+  },
+  "9042": {
+    "services": [
+      "cassandra"
+    ],
+    "desc": "Cassandra CQL"
+  },
+  "9043": {
+    "services": [
+      "websphere"
+    ],
+    "desc": ""
+  },
+  "9050": {
+    "services": [
+      "tor-socks"
+    ],
+    "desc": ""
+  },
+  "9051": {
+    "services": [
+      "tor-control"
+    ],
+    "desc": ""
+  },
+  "9060": {
+    "services": [
+      "websphere"
+    ],
+    "desc": ""
+  },
+  "9080": {
+    "services": [
+      "glrpc"
+    ],
+    "desc": ""
+  },
+  "9090": {
+    "services": [
+      "zeus-admin",
+      "prometheus"
+    ],
+    "desc": "Prometheus monitoring"
+  },
+  "9091": {
+    "services": [
+      "transmission"
+    ],
+    "desc": ""
+  },
+  "9092": {
+    "services": [
+      "kafka"
+    ],
+    "desc": "Apache Kafka"
+  },
+  "9093": {
+    "services": [
+      "kafka"
+    ],
+    "desc": ""
+  },
+  "9094": {
+    "services": [
+      "kafka"
+    ],
+    "desc": ""
+  },
+  "9095": {
+    "services": [
+      "kafka"
+    ],
+    "desc": ""
+  },
+  "9100": {
+    "services": [
+      "jetdirect",
+      "prometheus"
+    ],
+    "desc": ""
+  },
+  "9101": {
+    "services": [
+      "bacula"
+    ],
+    "desc": ""
+  },
+  "9102": {
+    "services": [
+      "bacula"
+    ],
+    "desc": ""
+  },
+  "9103": {
+    "services": [
+      "bacula"
+    ],
+    "desc": ""
+  },
+  "9104": {
+    "services": [
+      "mysqld-exporter"
+    ],
+    "desc": ""
+  },
+  "9106": {
+    "services": [
+      "bacula"
+    ],
+    "desc": ""
+  },
+  "9110": {
+    "services": [
+      "dragon"
+    ],
+    "desc": ""
+  },
+  "9160": {
+    "services": [
+      "cassandra"
+    ],
+    "desc": ""
+  },
+  "9191": {
+    "services": [
+      "sun-proxy"
+    ],
+    "desc": ""
+  },
+  "9200": {
+    "services": [
+      "elasticsearch"
+    ],
+    "desc": "Elasticsearch REST"
+  },
+  "9201": {
+    "services": [
+      "elasticsearch"
+    ],
+    "desc": ""
+  },
+  "9300": {
+    "services": [
+      "elasticsearch"
+    ],
+    "desc": "Elasticsearch transport"
+  },
+  "9301": {
+    "services": [
+      "elasticsearch"
+    ],
+    "desc": ""
+  },
+  "9306": {
+    "services": [
+      "sphinxql"
+    ],
+    "desc": ""
+  },
+  "9312": {
+    "services": [
+      "sphinx"
+    ],
+    "desc": ""
+  },
+  "9333": {
+    "services": [
+      "seaweedfs"
+    ],
+    "desc": ""
+  },
+  "9339": {
+    "services": [
+      "clash"
+    ],
+    "desc": ""
+  },
+  "9389": {
+    "services": [
+      "adws"
+    ],
+    "desc": ""
+  },
+  "9418": {
+    "services": [
+      "git"
+    ],
+    "desc": "Git protocol"
+  },
+  "9443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "9500": {
+    "services": [
+      "ismserver"
+    ],
+    "desc": ""
+  },
+  "9530": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "9595": {
+    "services": [
+      "pds"
+    ],
+    "desc": ""
+  },
+  "9600": {
+    "services": [
+      "logstash"
+    ],
+    "desc": ""
+  },
+  "9615": {
+    "services": [
+      "polkadot"
+    ],
+    "desc": ""
+  },
+  "9696": {
+    "services": [
+      "neutron"
+    ],
+    "desc": ""
+  },
+  "9735": {
+    "services": [
+      "lightning"
+    ],
+    "desc": ""
+  },
+  "9800": {
+    "services": [
+      "davsrcs"
+    ],
+    "desc": ""
+  },
+  "9876": {
+    "services": [
+      "sd"
+    ],
+    "desc": ""
+  },
+  "9898": {
+    "services": [
+      "tripwire"
+    ],
+    "desc": ""
+  },
+  "9899": {
+    "services": [
+      "sctp-tunneling"
+    ],
+    "desc": ""
+  },
+  "9943": {
+    "services": [
+      "solr"
+    ],
+    "desc": ""
+  },
+  "9944": {
+    "services": [
+      "polkadot"
+    ],
+    "desc": ""
+  },
+  "9981": {
+    "services": [
+      "tvheadend"
+    ],
+    "desc": ""
+  },
+  "9982": {
+    "services": [
+      "tvheadend"
+    ],
+    "desc": ""
+  },
+  "9987": {
+    "services": [
+      "teamspeak3"
+    ],
+    "desc": "TeamSpeak 3"
+  },
+  "9993": {
+    "services": [
+      "zerotier"
+    ],
+    "desc": ""
+  },
+  "9999": {
+    "services": [
+      "abyss"
+    ],
+    "desc": ""
+  },
+  "10000": {
+    "services": [
+      "webmin",
+      "ndmp"
+    ],
+    "desc": ""
+  },
+  "10001": {
+    "services": [
+      "ubiquiti"
+    ],
+    "desc": ""
+  },
+  "10002": {
+    "services": [
+      "documentum"
+    ],
+    "desc": ""
+  },
+  "10009": {
+    "services": [
+      "swdtp-sv"
+    ],
+    "desc": ""
+  },
+  "10010": {
+    "services": [
+      "rxapi"
+    ],
+    "desc": ""
+  },
+  "10024": {
+    "services": [
+      "amavis"
+    ],
+    "desc": ""
+  },
+  "10025": {
+    "services": [
+      "amavis"
+    ],
+    "desc": ""
+  },
+  "10050": {
+    "services": [
+      "zabbix-agent"
+    ],
+    "desc": "Zabbix agent"
+  },
+  "10051": {
+    "services": [
+      "zabbix-server"
+    ],
+    "desc": "Zabbix server"
+  },
+  "10080": {
+    "services": [
+      "amanda"
+    ],
+    "desc": ""
+  },
+  "10110": {
+    "services": [
+      "nmea"
+    ],
+    "desc": ""
+  },
+  "10161": {
+    "services": [
+      "snmp-tls"
+    ],
+    "desc": ""
+  },
+  "10162": {
+    "services": [
+      "snmptrap-tls"
+    ],
+    "desc": ""
+  },
+  "10200": {
+    "services": [
+      "frisk"
+    ],
+    "desc": ""
+  },
+  "10443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "10500": {
+    "services": [
+      "hip-nat"
+    ],
+    "desc": ""
+  },
+  "10514": {
+    "services": [
+      "syslog-tls"
+    ],
+    "desc": ""
+  },
+  "10554": {
+    "services": [
+      "rtsp-alt"
+    ],
+    "desc": ""
+  },
+  "10800": {
+    "services": [
+      "gap"
+    ],
+    "desc": ""
+  },
+  "10911": {
+    "services": [
+      "irisa"
+    ],
+    "desc": ""
+  },
+  "10912": {
+    "services": [
+      "ftp-alt"
+    ],
+    "desc": ""
+  },
+  "10990": {
+    "services": [
+      "netop"
+    ],
+    "desc": ""
+  },
+  "11095": {
+    "services": [
+      "nest-log"
+    ],
+    "desc": ""
+  },
+  "11111": {
+    "services": [
+      "vce"
+    ],
+    "desc": ""
+  },
+  "11211": {
+    "services": [
+      "memcached"
+    ],
+    "desc": "Memcached"
+  },
+  "11212": {
+    "services": [
+      "memcached"
+    ],
+    "desc": ""
+  },
+  "11213": {
+    "services": [
+      "memcached"
+    ],
+    "desc": ""
+  },
+  "11214": {
+    "services": [
+      "memcached"
+    ],
+    "desc": ""
+  },
+  "11215": {
+    "services": [
+      "memcached"
+    ],
+    "desc": ""
+  },
+  "11300": {
+    "services": [
+      "beanstalk"
+    ],
+    "desc": ""
+  },
+  "11371": {
+    "services": [
+      "pgp-keyserver"
+    ],
+    "desc": ""
+  },
+  "11720": {
+    "services": [
+      "h323-call"
+    ],
+    "desc": ""
+  },
+  "12000": {
+    "services": [
+      "cce4x"
+    ],
+    "desc": ""
+  },
+  "12001": {
+    "services": [
+      "entextnetwk"
+    ],
+    "desc": ""
+  },
+  "12012": {
+    "services": [
+      "oidcp"
+    ],
+    "desc": ""
+  },
+  "12035": {
+    "services": [
+      "lxi-evntsvc"
+    ],
+    "desc": ""
+  },
+  "12201": {
+    "services": [
+      "gelf"
+    ],
+    "desc": ""
+  },
+  "12345": {
+    "services": [
+      "netbus"
+    ],
+    "desc": ""
+  },
+  "12443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "13000": {
+    "services": [
+      "misc"
+    ],
+    "desc": ""
+  },
+  "13579": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "14147": {
+    "services": [
+      "icw"
+    ],
+    "desc": ""
+  },
+  "14443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "14500": {
+    "services": [
+      "dlms"
+    ],
+    "desc": ""
+  },
+  "15000": {
+    "services": [
+      "hydap"
+    ],
+    "desc": ""
+  },
+  "15672": {
+    "services": [
+      "rabbitmq"
+    ],
+    "desc": "RabbitMQ management"
+  },
+  "16000": {
+    "services": [
+      "artdp"
+    ],
+    "desc": ""
+  },
+  "16010": {
+    "services": [
+      "hbase"
+    ],
+    "desc": ""
+  },
+  "16020": {
+    "services": [
+      "hbase"
+    ],
+    "desc": ""
+  },
+  "16030": {
+    "services": [
+      "hbase"
+    ],
+    "desc": ""
+  },
+  "16080": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "16384": {
+    "services": [
+      "connected"
+    ],
+    "desc": ""
+  },
+  "16443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "16567": {
+    "services": [
+      "battlefield"
+    ],
+    "desc": ""
+  },
+  "17000": {
+    "services": [
+      "db-lsp"
+    ],
+    "desc": ""
+  },
+  "17001": {
+    "services": [
+      "db-lsp"
+    ],
+    "desc": ""
+  },
+  "17004": {
+    "services": [
+      "db-lsp"
+    ],
+    "desc": ""
+  },
+  "17070": {
+    "services": [
+      "juju"
+    ],
+    "desc": ""
+  },
+  "17500": {
+    "services": [
+      "dropbox"
+    ],
+    "desc": ""
+  },
+  "18000": {
+    "services": [
+      "biimenu"
+    ],
+    "desc": ""
+  },
+  "18080": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "18081": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "18083": {
+    "services": [
+      "emqx"
+    ],
+    "desc": ""
+  },
+  "18091": {
+    "services": [
+      "couchbase"
+    ],
+    "desc": ""
+  },
+  "18092": {
+    "services": [
+      "couchbase"
+    ],
+    "desc": ""
+  },
+  "18104": {
+    "services": [
+      "rad-pdp"
+    ],
+    "desc": ""
+  },
+  "18200": {
+    "services": [
+      "veeam"
+    ],
+    "desc": ""
+  },
+  "18333": {
+    "services": [
+      "bitcoin-testnet"
+    ],
+    "desc": ""
+  },
+  "18443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "18888": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "19132": {
+    "services": [
+      "minecraft-bedrock"
+    ],
+    "desc": ""
+  },
+  "19133": {
+    "services": [
+      "minecraft-bedrock"
+    ],
+    "desc": ""
+  },
+  "19226": {
+    "services": [
+      "admind"
+    ],
+    "desc": ""
+  },
+  "19999": {
+    "services": [
+      "dnp-sec"
+    ],
+    "desc": ""
+  },
+  "20000": {
+    "services": [
+      "dnp"
+    ],
+    "desc": ""
+  },
+  "20547": {
+    "services": [
+      "openmesh"
+    ],
+    "desc": ""
+  },
+  "20720": {
+    "services": [
+      "symantec"
+    ],
+    "desc": ""
+  },
+  "21025": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "21064": {
+    "services": [
+      "dfsr"
+    ],
+    "desc": ""
+  },
+  "22000": {
+    "services": [
+      "syncthing"
+    ],
+    "desc": ""
+  },
+  "22023": {
+    "services": [
+      "among-us"
+    ],
+    "desc": ""
+  },
+  "22136": {
+    "services": [
+      "dropbox"
+    ],
+    "desc": ""
+  },
+  "22222": {
+    "services": [
+      "easyengine"
+    ],
+    "desc": ""
+  },
+  "23073": {
+    "services": [
+      "honeycheck"
+    ],
+    "desc": ""
+  },
+  "24444": {
+    "services": [
+      "nettracks"
+    ],
+    "desc": ""
+  },
+  "24465": {
+    "services": [
+      "tonidods"
+    ],
+    "desc": ""
+  },
+  "24554": {
+    "services": [
+      "binkp"
+    ],
+    "desc": ""
+  },
+  "24800": {
+    "services": [
+      "synergy"
+    ],
+    "desc": ""
+  },
+  "25000": {
+    "services": [
+      "icl-twobase"
+    ],
+    "desc": ""
+  },
+  "25010": {
+    "services": [
+      "icl"
+    ],
+    "desc": ""
+  },
+  "25555": {
+    "services": [
+      "mysql-alt"
+    ],
+    "desc": ""
+  },
+  "25565": {
+    "services": [
+      "minecraft"
+    ],
+    "desc": "Minecraft Java"
+  },
+  "25575": {
+    "services": [
+      "minecraft-rcon"
+    ],
+    "desc": ""
+  },
+  "25672": {
+    "services": [
+      "rabbitmq"
+    ],
+    "desc": ""
+  },
+  "26000": {
+    "services": [
+      "quake"
+    ],
+    "desc": ""
+  },
+  "26900": {
+    "services": [
+      "7daystodie"
+    ],
+    "desc": ""
+  },
+  "27000": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27001": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27002": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27003": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27004": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27005": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27006": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27007": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27008": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27009": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27010": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27014": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27015": {
+    "services": [
+      "steam",
+      "source-engine"
+    ],
+    "desc": "Steam/Source games"
+  },
+  "27016": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27017": {
+    "services": [
+      "mongodb"
+    ],
+    "desc": "MongoDB"
+  },
+  "27018": {
+    "services": [
+      "mongodb"
+    ],
+    "desc": ""
+  },
+  "27019": {
+    "services": [
+      "mongodb"
+    ],
+    "desc": ""
+  },
+  "27020": {
+    "services": [
+      "source-engine"
+    ],
+    "desc": ""
+  },
+  "27036": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27037": {
+    "services": [
+      "steam"
+    ],
+    "desc": ""
+  },
+  "27500": {
+    "services": [
+      "quakeworld"
+    ],
+    "desc": ""
+  },
+  "27900": {
+    "services": [
+      "gamespy"
+    ],
+    "desc": ""
+  },
+  "27901": {
+    "services": [
+      "gamespy"
+    ],
+    "desc": ""
+  },
+  "27960": {
+    "services": [
+      "quake3"
+    ],
+    "desc": ""
+  },
+  "28015": {
+    "services": [
+      "rust-game"
+    ],
+    "desc": ""
+  },
+  "28016": {
+    "services": [
+      "rust-game"
+    ],
+    "desc": ""
+  },
+  "28017": {
+    "services": [
+      "mongodb-http"
+    ],
+    "desc": ""
+  },
+  "28852": {
+    "services": [
+      "battlefield"
+    ],
+    "desc": ""
+  },
+  "28960": {
+    "services": [
+      "cod"
+    ],
+    "desc": ""
+  },
+  "29900": {
+    "services": [
+      "gamespy"
+    ],
+    "desc": ""
+  },
+  "29901": {
+    "services": [
+      "gamespy"
+    ],
+    "desc": ""
+  },
+  "30000": {
+    "services": [
+      "ndmps"
+    ],
+    "desc": ""
+  },
+  "30033": {
+    "services": [
+      "teamspeak"
+    ],
+    "desc": ""
+  },
+  "30120": {
+    "services": [
+      "fivem"
+    ],
+    "desc": ""
+  },
+  "30303": {
+    "services": [
+      "ethereum"
+    ],
+    "desc": "Ethereum P2P"
+  },
+  "30564": {
+    "services": [
+      "home-assistant"
+    ],
+    "desc": ""
+  },
+  "31337": {
+    "services": [
+      "elite"
+    ],
+    "desc": ""
+  },
+  "32400": {
+    "services": [
+      "plex"
+    ],
+    "desc": "Plex Media Server"
+  },
+  "32469": {
+    "services": [
+      "plex"
+    ],
+    "desc": ""
+  },
+  "33060": {
+    "services": [
+      "mysqlx"
+    ],
+    "desc": ""
+  },
+  "33434": {
+    "services": [
+      "traceroute"
+    ],
+    "desc": ""
+  },
+  "34197": {
+    "services": [
+      "factorio"
+    ],
+    "desc": ""
+  },
+  "34443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "35357": {
+    "services": [
+      "keystone"
+    ],
+    "desc": ""
+  },
+  "37215": {
+    "services": [
+      "huawei-router"
+    ],
+    "desc": ""
+  },
+  "37777": {
+    "services": [
+      "dahua"
+    ],
+    "desc": ""
+  },
+  "40000": {
+    "services": [
+      "safetynetp"
+    ],
+    "desc": ""
+  },
+  "42420": {
+    "services": [
+      "ethereum"
+    ],
+    "desc": ""
+  },
+  "43594": {
+    "services": [
+      "runescape"
+    ],
+    "desc": ""
+  },
+  "43595": {
+    "services": [
+      "runescape"
+    ],
+    "desc": ""
+  },
+  "44158": {
+    "services": [
+      "helium"
+    ],
+    "desc": ""
+  },
+  "44443": {
+    "services": [
+      "https-alt"
+    ],
+    "desc": ""
+  },
+  "44818": {
+    "services": [
+      "ethernet-ip"
+    ],
+    "desc": "EtherNet/IP (industrial)"
+  },
+  "45000": {
+    "services": [
+      "asmp"
+    ],
+    "desc": ""
+  },
+  "47001": {
+    "services": [
+      "winrm"
+    ],
+    "desc": ""
+  },
+  "47808": {
+    "services": [
+      "bacnet"
+    ],
+    "desc": "BACnet (building automation)"
+  },
+  "48080": {
+    "services": [
+      "http-alt"
+    ],
+    "desc": ""
+  },
+  "49151": {
+    "services": [
+      "reserved"
+    ],
+    "desc": ""
+  },
+  "49152": {
+    "services": [
+      "dynamic"
+    ],
+    "desc": ""
+  },
+  "51413": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "51820": {
+    "services": [
+      "wireguard"
+    ],
+    "desc": "WireGuard VPN"
+  },
+  "51821": {
+    "services": [
+      "wireguard"
+    ],
+    "desc": ""
+  },
+  "52000": {
+    "services": [
+      "websim"
+    ],
+    "desc": ""
+  },
+  "53646": {
+    "services": [
+      "bittorrent"
+    ],
+    "desc": ""
+  },
+  "54321": {
+    "services": [
+      "pogo"
+    ],
+    "desc": ""
+  },
+  "55555": {
+    "services": [
+      "unknown"
+    ],
+    "desc": ""
+  },
+  "56001": {
+    "services": [
+      "ovn-db"
+    ],
+    "desc": ""
+  },
+  "60000": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "60001": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "60002": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "60003": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "60004": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "60005": {
+    "services": [
+      "mosh"
+    ],
+    "desc": ""
+  },
+  "64738": {
+    "services": [
+      "mumble"
+    ],
+    "desc": "Mumble voice chat"
+  },
+  "65535": {
+    "services": [
+      "reserved"
+    ],
+    "desc": ""
+  }
+}
